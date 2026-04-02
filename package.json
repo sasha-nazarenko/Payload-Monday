@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "deploy": "vercel --prod",
-    "deploy:preview": "vercel"
+    "deploy:preview": "vercel",
+    "spec:check": "node ./scripts/check-admin-spec-sync.mjs"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

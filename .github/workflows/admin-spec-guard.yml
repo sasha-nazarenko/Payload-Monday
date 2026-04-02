@@ -1,0 +1,33 @@
+name: Admin Spec Guard
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - stage-1
+
+jobs:
+  admin-spec-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run admin spec sync check
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            SPEC_BASE_REF="origin/${{ github.base_ref }}" npm run spec:check
+          else
+            SPEC_BASE_REF="HEAD~1" npm run spec:check
+          fi
