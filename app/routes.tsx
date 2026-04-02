@@ -1,22 +1,25 @@
 import { createBrowserRouter } from 'react-router';
+import { ProductCatalogue } from './pages/ProductCatalogue';
 import { ProductDetail } from './pages/ProductDetail';
 import { NewProduct } from './pages/NewProduct';
 import { AppaSyncDashboard } from './pages/AppaSyncDashboard';
+import { Dashboard } from './pages/Dashboard';
 import { PricingRules } from './pages/PricingRules';
 import { MyProposals } from './pages/MyProposals';
 import { ProposalBuilder } from './pages/ProposalBuilder';
 import { DecoratorMatrix } from './pages/DecoratorMatrix';
 import { PriceCurveSettings } from './pages/PriceCurveSettings';
 import { ReactAdminView } from './pages/ReactAdminView';
+import { UnderConstruction } from './pages/UnderConstruction';
 
 export const router = createBrowserRouter([
   {
     path: '/',
-    element: <ReactAdminView />,
+    element: <ProductCatalogue />,
   },
   {
     path: '/dashboard',
-    element: <ReactAdminView />,
+    element: <Dashboard />,
   },
   {
     path: '/product/:productId',
@@ -59,7 +62,11 @@ export const router = createBrowserRouter([
     element: <PriceCurveSettings />,
   },
   {
-    path: '*',
+    path: '/admin-react',
     element: <ReactAdminView />,
+  },
+  {
+    path: '*',
+    element: <UnderConstruction />,
   },
 ]);
