@@ -18,6 +18,8 @@ In Vercel:
 
 If Stage-1 will modify schema or data behavior, use a separate DB URL in Preview.
 
+_Stage-1 note: use a small docs commit on `stage-1` to trigger a fresh Preview deploy when needed._
+
 ## Option A — Vercel dashboard (no CLI)
 
 1. Push this folder to **GitHub** (repo can be private).
