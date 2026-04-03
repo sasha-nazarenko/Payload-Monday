@@ -44,10 +44,13 @@ The following primary navigation items must be available for Admin:
 
 1. Dashboard (`/dashboard`)
 2. Products (`/`)
-3. Decorators (`/decorators`)
-4. APPA Sync (`/appa-sync`)
-5. Users (`/users`) - may be placeholder route but menu entry must exist
-6. Settings (`/settings/price-curve`)
+3. Add Product (`/products/new`)
+4. Decorators (`/decorators`)
+5. APPA Sync (`/appa-sync`)
+6. Users (`/users`) - may be placeholder route but menu entry must exist
+
+Stage note:
+- Settings page is removed from stage navigation and stage routes.
 
 ## Functional Requirements (Admin)
 
@@ -73,6 +76,7 @@ The following primary navigation items must be available for Admin:
 
 - Multi-step workflow is available end-to-end.
 - Validation, review, and activation gating are intact.
+- Pricing tiers are entered manually in Step 3 (no Settings template dependency in stage).
 
 ## FR-5 Decorator Management
 
@@ -86,7 +90,9 @@ The following primary navigation items must be available for Admin:
 
 ## FR-7 Pricing Governance
 
-- Pricing rules and related settings are accessible to Admin.
+- Pricing rules remain accessible to Admin.
+- Stage does not expose Settings/Price Curve Templates as a standalone page.
+- Tier configuration happens inside product creation flow (`/products/new`, Step 3).
 
 ## UI Specification
 

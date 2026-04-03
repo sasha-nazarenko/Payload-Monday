@@ -8,7 +8,6 @@ import { PricingRules } from './pages/PricingRules';
 import { MyProposals } from './pages/MyProposals';
 import { ProposalBuilder } from './pages/ProposalBuilder';
 import { DecoratorMatrix } from './pages/DecoratorMatrix';
-import { PriceCurveSettings } from './pages/PriceCurveSettings';
 import { ReactAdminView } from './pages/ReactAdminView';
 import { UnderConstruction } from './pages/UnderConstruction';
 
@@ -52,14 +51,6 @@ export const router = createBrowserRouter([
   {
     path: '/proposals/:proposalId',
     element: <ProposalBuilder />,
-  },
-  {
-    path: '/settings',
-    element: <PriceCurveSettings />,
-  },
-  {
-    path: '/settings/price-curve',
-    element: <PriceCurveSettings />,
   },
   {
     path: '/admin-react',

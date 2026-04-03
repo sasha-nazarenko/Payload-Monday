@@ -1,4 +1,4 @@
-import { LayoutDashboard, Search, FileText, FolderOpen, Settings, User, Package, Printer, RefreshCw, Users, DollarSign, ShieldCheck, BarChart3, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, Search, FileText, FolderOpen, Settings, User, Package, Printer, RefreshCw, Users, DollarSign, ShieldCheck, BarChart3, ClipboardList, Plus } from 'lucide-react';
 import { RoleSwitcher } from './RoleSwitcher';
 import { UserRole } from '../types';
 import { Link, useLocation } from 'react-router';
@@ -24,10 +24,10 @@ export function LeftSidebar({ currentRole, onRoleChange }: LeftSidebarProps) {
     ? [
         { name: 'Dashboard', icon: <LayoutDashboard size={18} />, active: location.pathname === '/dashboard', path: '/dashboard' },
         { name: 'Products', icon: <Package size={18} />, active: location.pathname === '/' || location.pathname.startsWith('/product'), path: '/' },
+        { name: 'Add Product', icon: <Plus size={18} />, active: location.pathname === '/products/new', path: '/products/new' },
         { name: 'Decorators', icon: <Printer size={18} />, active: location.pathname === '/decorators', path: '/decorators' },
         { name: 'APPA Sync', icon: <RefreshCw size={18} />, active: location.pathname === '/appa-sync', path: '/appa-sync' },
         { name: 'Users', icon: <Users size={18} />, active: location.pathname === '/users', path: '/users' },
-        { name: 'Settings', icon: <Settings size={18} />, active: location.pathname.startsWith('/settings'), path: '/settings/price-curve' },
       ]
     : currentRole === 'finance'
     ? [

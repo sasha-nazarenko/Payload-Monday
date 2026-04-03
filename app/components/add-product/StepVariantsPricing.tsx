@@ -1,22 +1,8 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Plus, X, Edit, Trash2, Info, AlertTriangle, ChevronDown, LayoutList, Star, Sparkles, Ban, Truck, Link2, Database, Pencil } from 'lucide-react';
-import { ProductFormData, Variant, PricingTier, getTemplates, PriceCurveTemplate, DECORATION_METHODS_LIST } from './types';
+import { Plus, X, Edit, Trash2, Info, AlertTriangle, Ban, Truck, Link2, Pencil } from 'lucide-react';
+import { ProductFormData, Variant, PricingTier, DECORATION_METHODS_LIST } from './types';
 import { BelowMoqSurcharge } from './BelowMoqSurcharge';
 import { YesNoToggle } from '../YesNoToggle';
-import { getDecoratorRateCard } from '../../data/decoratorData';
-
-// Load all templates from localStorage on first render
-function loadTemplates(): PriceCurveTemplate[] {
-  return getTemplates();
-}
-
-/** Returns true when two tier arrays have the same qty breakpoints + unit costs */
-function tiersMatchTemplate(tiers: PricingTier[], tpl: PriceCurveTemplate): boolean {
-  if (tiers.length !== tpl.tiers.length) return false;
-  return tiers.every((t, i) =>
-    t.minQty === tpl.tiers[i].minQty && t.unitCost === tpl.tiers[i].unitCost,
-  );
-}
 
 interface StepVariantsPricingProps {
   formData: ProductFormData;
@@ -30,56 +16,7 @@ export function StepVariantsPricing({ formData, onUpdate, currentRole, errors }:
   const [newVariantName, setNewVariantName] = useState('');
   const [newVariantSku, setNewVariantSku] = useState('');
   const [previewQtyIndex, setPreviewQtyIndex] = useState(0);
-  // Track which tier rows the admin has unlocked for editing (overriding decorator values)
-  const [tierOverrides, setTierOverrides] = useState<Record<string, boolean>>({});
   const [previewDecorator, setPreviewDecorator] = useState('Screen Print');
-  const [showTemplateMenu, setShowTemplateMenu] = useState(false);
-  const [allTemplates] = useState<PriceCurveTemplate[]>(loadTemplates);
-  const templateMenuRef = useRef<HTMLDivElement>(null);
-  const lastDecoratorKeyRef = useRef<string>('');
-
-  // Track which template was last applied so we can show the "pre-populated" badge.
-  // Initialise by checking whether the current tiers already match the default template
-  // (true when the form is brand-new and was seeded from the global default curve).
-  const [appliedTemplateName, setAppliedTemplateName] = useState<string | null>(() => {
-    const defTpl = loadTemplates().find(t => t.isDefault);
-    if (!defTpl) return null;
-    return tiersMatchTemplate(formData.pricingTiers, defTpl) ? defTpl.name : null;
-  });
-
-  // ── Auto-populate tiers from decorator rate card ────────────────────────
-  // Fires when the primary method/supplier (Step 2) changes. Respects manual edits.
-  useEffect(() => {
-    const { primaryDecorationMethod, primaryDecoratorSupplier } = formData;
-    const key = `${primaryDecoratorSupplier}::${primaryDecorationMethod}`;
-    if (key === lastDecoratorKeyRef.current) return;
-    lastDecoratorKeyRef.current = key;
-    if (!primaryDecoratorSupplier || !primaryDecorationMethod) return;
-    const rawTiers = getDecoratorRateCard(primaryDecoratorSupplier, primaryDecorationMethod);
-    if (!rawTiers) return;
-    // Respect manual overrides — don't clobber user edits
-    const hasManualEdits = formData.pricingTiers.some(t => t.source === 'manual');
-    if (hasManualEdits) return;
-    const tiers: PricingTier[] = rawTiers.map((t, i) => ({
-      ...t,
-      id: String(Date.now() + i),
-      source: 'decorator' as const,
-    }));
-    onUpdate({ pricingTiers: tiers });
-    setAppliedTemplateName(null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.primaryDecoratorSupplier, formData.primaryDecorationMethod]);
-
-  // Close template menu on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (templateMenuRef.current && !templateMenuRef.current.contains(e.target as Node)) {
-        setShowTemplateMenu(false);
-      }
-    };
-    if (showTemplateMenu) document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [showTemplateMenu]);
 
   const { variants, pricingTiers, marginTarget, marginFloor, rushFee, minOrderQty, maxOrderQty,
     moqAvailable, allowBelowMoq, belowMoqSurchargeType, belowMoqSurchargeValue,
@@ -91,16 +28,6 @@ export function StepVariantsPricing({ formData, onUpdate, currentRole, errors }:
   const supplierIsDecorator: boolean = formData.supplierIsDecorator ?? false;
   const freightLeg1: number = typeof formData.freightLeg1 === 'number' ? formData.freightLeg1 : 0.50;
   const freightLeg2: number = typeof formData.freightLeg2 === 'number' ? formData.freightLeg2 : 0.30;
-
-  const handleApplyTemplate = (tpl: PriceCurveTemplate) => {
-    const tiers: PricingTier[] = tpl.tiers.map((t, i) => ({
-      ...t,
-      id: String(Date.now() + i),
-    }));
-    onUpdate({ pricingTiers: tiers });
-    setAppliedTemplateName(tpl.name);
-    setShowTemplateMenu(false);
-  };
 
   const handleDeleteVariant = (id: string) => {
     onUpdate({ variants: variants.filter(v => v.id !== id) });
@@ -125,7 +52,6 @@ export function StepVariantsPricing({ formData, onUpdate, currentRole, errors }:
   const handleDeleteTier = (id: string) => {
     if (pricingTiers.length <= 1) return;
     onUpdate({ pricingTiers: pricingTiers.filter(t => t.id !== id) });
-    setAppliedTemplateName(null);
   };
 
   const handleAddTier = () => {
@@ -136,9 +62,9 @@ export function StepVariantsPricing({ formData, onUpdate, currentRole, errors }:
       minQty: newMin,
       maxQty: null,
       unitCost: lastTier ? Math.max(lastTier.unitCost - 0.50, 0.50) : 5.00,
+      source: 'manual',
     };
     onUpdate({ pricingTiers: [...pricingTiers, newTier] });
-    setAppliedTemplateName(null);
   };
 
   const handleTierChange = (id: string, field: keyof PricingTier, value: number | null) => {
@@ -147,11 +73,6 @@ export function StepVariantsPricing({ formData, onUpdate, currentRole, errors }:
         t.id === id ? { ...t, [field]: value, source: 'manual' as const } : t
       ),
     });
-    setAppliedTemplateName(null);
-  };
-
-  const unlockTierRow = (id: string) => {
-    setTierOverrides(prev => ({ ...prev, [id]: true }));
   };
 
   // Check for tier gaps
@@ -399,185 +320,22 @@ export function StepVariantsPricing({ formData, onUpdate, currentRole, errors }:
                 <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
                   MOQ Tiers & Base Cost
                 </h3>
-
-                {/* "Default price curve applied" badge — shown only when a template seeded the tiers */}
-                {appliedTemplateName && (
-                  <span
-                    className="flex items-center gap-1 px-2 py-0.5 rounded"
-                    style={{
-                      backgroundColor: '#EBF3FB',
-                      border: '1px solid #BFDBF7',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      color: 'var(--jolly-primary)',
-                      borderRadius: '20px',
-                      lineHeight: '18px',
-                      whiteSpace: 'nowrap',
-                    }}
-                    title={`Tiers were pre-filled from the "${appliedTemplateName}" template. Edit any value to customise.`}
-                  >
-                    <Sparkles size={10} />
-                    {appliedTemplateName} applied
-                    {/* Dismiss */}
-                    <button
-                      onClick={() => setAppliedTemplateName(null)}
-                      title="Dismiss"
-                      style={{
-                        marginLeft: '2px', padding: '0 1px',
-                        background: 'none', border: 'none', cursor: 'pointer',
-                        color: 'var(--jolly-primary)', display: 'flex', alignItems: 'center',
-                        opacity: 0.6,
-                      }}
-                    >
-                      <X size={10} />
-                    </button>
-                  </span>
-                )}
-              </div>
-
-              {/* Apply Template dropdown */}
-              <div className="relative" ref={templateMenuRef}>
-                <button
-                  onClick={() => setShowTemplateMenu(v => !v)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded"
-                  style={{
-                    border: '1px solid var(--jolly-border)',
-                    backgroundColor: showTemplateMenu ? 'var(--jolly-surface)' : 'transparent',
-                    color: 'var(--jolly-text-secondary)',
-                    fontSize: '13px',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    height: '32px',
-                  }}
-                  title="Apply a pricing template to pre-fill the tier table"
-                >
-                  <LayoutList size={14} />
-                  Apply Template
-                  <ChevronDown size={12} style={{ transform: showTemplateMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
-                </button>
-                {showTemplateMenu && (
-                  <div
-                    className="absolute right-0 mt-1 rounded border shadow-lg"
-                    style={{
-                      top: '100%',
-                      zIndex: 50,
-                      backgroundColor: 'var(--jolly-card)',
-                      borderColor: 'var(--jolly-border)',
-                      minWidth: '260px',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <div style={{ padding: '6px 12px 5px', fontSize: '10px', fontWeight: 700, color: 'var(--jolly-text-disabled)', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid var(--jolly-border)', backgroundColor: 'var(--jolly-bg)' }}>
-                      Saved templates ({allTemplates.length})
-                    </div>
-                    {allTemplates.map(tpl => (
-                      <button
-                        key={tpl.id}
-                        onClick={() => handleApplyTemplate(tpl)}
-                        className="w-full text-left px-3 py-2.5 hover:bg-gray-50"
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'block', borderBottom: '1px solid var(--jolly-border)' }}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span style={{ fontWeight: 600, color: 'var(--jolly-primary)', fontSize: '13px' }}>{tpl.name}</span>
-                          {tpl.isDefault && (
-                            <span className="flex items-center gap-0.5 px-1 py-0.5 rounded" style={{ fontSize: '9px', fontWeight: 700, backgroundColor: 'var(--jolly-primary)', color: 'white' }}>
-                              <Star size={8} /> DEFAULT
-                            </span>
-                          )}
-                        </div>
-                        <div style={{ fontSize: '11px', color: 'var(--jolly-text-secondary)', marginTop: '2px' }}>
-                          {tpl.tiers.length} tiers · {tpl.description || `${tpl.tiers[0]?.minQty}–${tpl.tiers[tpl.tiers.length-1]?.maxQty ?? tpl.tiers[tpl.tiers.length-1]?.minQty + '+'}`}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
 
-            {/* ── Decorator rate card banner ── */}
-            {(() => {
-              const hasDecoratorTiers = pricingTiers.some(t => t.source === 'decorator');
-              const hasManualTiers = pricingTiers.some(t => t.source === 'manual');
-              const { primaryDecoratorSupplier, primaryDecorationMethod } = formData;
-              const rateCardExists = primaryDecoratorSupplier && primaryDecorationMethod &&
-                !!getDecoratorRateCard(primaryDecoratorSupplier, primaryDecorationMethod);
-
-              if (hasDecoratorTiers || rateCardExists) {
-                return (
-                  <div
-                    className="flex items-start gap-3 px-4 py-3 rounded mb-3"
-                    style={{
-                      backgroundColor: hasManualTiers ? '#FFFBEB' : '#EBF3FB',
-                      border: `1px solid ${hasManualTiers ? '#FDE68A' : '#BFDBF7'}`,
-                      borderRadius: '6px',
-                    }}
-                  >
-                    <Database size={15} style={{ color: hasManualTiers ? '#D97706' : 'var(--jolly-primary)', marginTop: '1px', flexShrink: 0 }} />
-                    <div style={{ fontSize: '13px', lineHeight: 1.5 }}>
-                      {hasManualTiers ? (
-                        <>
-                          <span style={{ fontWeight: 700, color: '#92400E' }}>Partially overridden — </span>
-                          <span style={{ color: '#78350F' }}>
-                            Some tiers were edited manually. Rows marked{' '}
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded" style={{ backgroundColor: '#BFDBF7', color: 'var(--jolly-primary)', fontSize: '11px', fontWeight: 600 }}>From decorator matrix</span>
-                            {' '}still reflect {primaryDecoratorSupplier}'s {primaryDecorationMethod} rate card.
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <span style={{ fontWeight: 700, color: 'var(--jolly-primary)' }}>Auto-populated — </span>
-                          <span style={{ color: 'var(--jolly-text-secondary)' }}>
-                            Tiers loaded from <strong>{primaryDecoratorSupplier}</strong>'s{' '}
-                            {primaryDecorationMethod} rate card. Edit any row to override.
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                );
-              }
-
-              if (primaryDecorationMethod && primaryDecoratorSupplier && !rateCardExists) {
-                return (
-                  <div
-                    className="flex items-start gap-3 px-4 py-3 rounded mb-3"
-                    style={{
-                      backgroundColor: 'var(--jolly-bg)',
-                      border: '1px solid var(--jolly-border)',
-                      borderRadius: '6px',
-                    }}
-                  >
-                    <Pencil size={15} style={{ color: 'var(--jolly-text-secondary)', marginTop: '1px', flexShrink: 0 }} />
-                    <p style={{ fontSize: '13px', color: 'var(--jolly-text-secondary)', margin: 0, lineHeight: 1.5 }}>
-                      <strong>Manual entry</strong> — no rate card found for {primaryDecoratorSupplier} ({primaryDecorationMethod}).
-                      Enter all costs directly below.
-                    </p>
-                  </div>
-                );
-              }
-
-              if (!primaryDecorationMethod && !primaryDecoratorSupplier) {
-                return (
-                  <div
-                    className="flex items-start gap-3 px-4 py-3 rounded mb-3"
-                    style={{
-                      backgroundColor: 'var(--jolly-bg)',
-                      border: '1px solid var(--jolly-border)',
-                      borderRadius: '6px',
-                    }}
-                  >
-                    <Info size={15} style={{ color: 'var(--jolly-text-secondary)', marginTop: '1px', flexShrink: 0 }} />
-                    <p style={{ fontSize: '13px', color: 'var(--jolly-text-secondary)', margin: 0, lineHeight: 1.5 }}>
-                      No decorator selected in Step 2. Enter pricing tiers manually, or{' '}
-                      <strong>go back to Step 2 — Decoration</strong> to select a supplier and auto-load a rate card.
-                    </p>
-                  </div>
-                );
-              }
-
-              return null;
-            })()}
+            <div
+              className="flex items-start gap-3 px-4 py-3 rounded mb-3"
+              style={{
+                backgroundColor: 'var(--jolly-bg)',
+                border: '1px solid var(--jolly-border)',
+                borderRadius: '6px',
+              }}
+            >
+              <Pencil size={15} style={{ color: 'var(--jolly-text-secondary)', marginTop: '1px', flexShrink: 0 }} />
+              <p style={{ fontSize: '13px', color: 'var(--jolly-text-secondary)', margin: 0, lineHeight: 1.5 }}>
+                <strong>Stage mode: Manual tier entry</strong> — define all pricing tiers directly in this step during product creation.
+              </p>
+            </div>
 
             {/* MOQ Availability + Allow Below MOQ */}
             <BelowMoqSurcharge
@@ -640,8 +398,6 @@ export function StepVariantsPricing({ formData, onUpdate, currentRole, errors }:
                 </thead>
                 <tbody>
                   {pricingTiers.map((tier, index) => {
-                    const isDecoratorRow = tier.source === 'decorator';
-                    const isLocked = isDecoratorRow && !tierOverrides[tier.id];
                     return (
                     <tr
                       key={tier.id}
@@ -701,45 +457,15 @@ export function StepVariantsPricing({ formData, onUpdate, currentRole, errors }:
                         </div>
                         )}
                       </td>
-                      {/* Source badge + override control */}
+                      {/* Source badge */}
                       <td className="py-2 px-4">
-                        {isDecoratorRow && isLocked && (
-                          <div className="flex items-center gap-1.5">
-                            <span
-                              className="flex items-center gap-1 px-2 py-0.5 rounded-full"
-                              style={{ backgroundColor: '#EBF3FB', border: '1px solid #BFDBF7', fontSize: '11px', fontWeight: 600, color: 'var(--jolly-primary)', whiteSpace: 'nowrap', display: 'inline-flex' }}
-                              title="Auto-populated from the Decorator Matrix. Click Override to edit."
-                            >
-                              <Database size={9} />
-                              From matrix
-                            </span>
-                            <button
-                              onClick={() => unlockTierRow(tier.id)}
-                              title="Override this rate-card value"
-                              style={{ background: 'none', border: '1px solid var(--jolly-border)', borderRadius: '4px', cursor: 'pointer', padding: '1px 6px', fontSize: '10px', fontWeight: 600, color: 'var(--jolly-text-secondary)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '3px' }}
-                            >
-                              <Pencil size={9} /> Override
-                            </button>
-                          </div>
-                        )}
-                        {isDecoratorRow && !isLocked && (
-                          <span
-                            className="flex items-center gap-1 px-2 py-0.5 rounded-full"
-                            style={{ backgroundColor: '#FFFBEB', border: '1px solid #FDE68A', fontSize: '11px', fontWeight: 600, color: '#D97706', whiteSpace: 'nowrap', display: 'inline-flex' }}
-                          >
-                            <Pencil size={9} />
-                            Overridden
-                          </span>
-                        )}
-                        {tier.source === 'manual' && !isDecoratorRow && (
-                          <span
-                            className="flex items-center gap-1 px-2 py-0.5 rounded-full"
-                            style={{ backgroundColor: 'var(--jolly-bg)', border: '1px solid var(--jolly-border)', fontSize: '11px', fontWeight: 600, color: 'var(--jolly-text-disabled)', whiteSpace: 'nowrap', display: 'inline-flex' }}
-                          >
-                            <Pencil size={9} />
-                            Manual
-                          </span>
-                        )}
+                        <span
+                          className="flex items-center gap-1 px-2 py-0.5 rounded-full"
+                          style={{ backgroundColor: 'var(--jolly-bg)', border: '1px solid var(--jolly-border)', fontSize: '11px', fontWeight: 600, color: 'var(--jolly-text-disabled)', whiteSpace: 'nowrap', display: 'inline-flex' }}
+                        >
+                          <Pencil size={9} />
+                          Manual
+                        </span>
                       </td>
 
                       <td className="py-2 px-4">
