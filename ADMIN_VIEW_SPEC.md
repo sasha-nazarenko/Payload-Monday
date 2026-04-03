@@ -56,7 +56,7 @@ The following primary navigation items must be available for Admin:
 - Core KPI cards are visible (active products, pending review, APPA conflicts, quoted products).
 - In the main content (below KPIs), **Work queues** appears as a single card with a **segmented control** (two equal segments) for **incomplete products** and **APPA conflicts**, each with a compact numeric count badge. Only **one** queue table is visible at a time; the control switches the active panel and indicates selection.
 - The active table scrolls inside a fixed-height area with a **sticky header** to limit long page scroll.
-- APPA **monitoring** (last run summary, manual sync trigger) lives in the **catalogue health page header** beside the title; **conflict triage** (filter tabs and **per-row** resolve actions only) stays in Work queues on the same page; the incomplete-products queue uses **per-row** actions only (no row multi-select or bulk bar). Conflict count in KPIs stays consistent with the unresolved queue.
+- APPA **monitoring** (last run summary, manual sync trigger) lives in the **catalogue health page header** beside the title—with a **bounded width** on wide screens so the title and intro copy stay fully visible (the sync strip does not stretch to full row width). **Conflict triage** (filter tabs and **per-row** resolve actions only) stays in Work queues on the same page; the incomplete-products queue uses **per-row** actions only (no row multi-select or bulk bar). Conflict count in KPIs stays consistent with the unresolved queue.
 
 ## FR-2 Product Catalogue
 

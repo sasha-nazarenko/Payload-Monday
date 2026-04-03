@@ -169,8 +169,8 @@ export function Dashboard() {
           className="border-b bg-white px-8 py-5"
           style={{ borderColor: 'var(--jolly-border)' }}
         >
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
-            <div className="min-w-0 flex-1">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between xl:gap-8">
+            <div className="min-w-0 xl:flex-1">
               <p style={{ fontSize: '18px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
                 Catalogue health
               </p>
@@ -181,11 +181,10 @@ export function Dashboard() {
             <div
               ref={appaMonitoringRef}
               id="appa-monitoring"
-              className="flex w-full min-w-0 flex-shrink-0 flex-col gap-3 rounded-lg border px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between 2xl:flex-nowrap"
+              className="flex w-full min-w-0 flex-shrink-0 flex-col gap-3 rounded-lg border px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between xl:w-auto xl:max-w-xl 2xl:max-w-2xl 2xl:flex-nowrap"
               style={{
                 borderColor: 'var(--jolly-border)',
                 backgroundColor: 'var(--jolly-bg)',
-                alignSelf: 'stretch',
               }}
             >
               <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6 sm:gap-y-2">
@@ -208,7 +207,7 @@ export function Dashboard() {
                 type="button"
                 onClick={handleManualSync}
                 disabled={isSyncing}
-                className="flex flex-shrink-0 items-center justify-center gap-2 border px-4 transition-colors"
+                className="flex flex-shrink-0 items-center justify-center gap-2 self-center border px-4 transition-colors"
                 style={{
                   borderColor: 'var(--jolly-primary)',
                   color: 'var(--jolly-primary)',
@@ -219,7 +218,6 @@ export function Dashboard() {
                   borderRadius: '6px',
                   opacity: isSyncing ? 0.6 : 1,
                   cursor: isSyncing ? 'not-allowed' : 'pointer',
-                  alignSelf: 'stretch',
                 }}
               >
                 <RefreshCw size={15} className={isSyncing ? 'animate-spin' : ''} />
