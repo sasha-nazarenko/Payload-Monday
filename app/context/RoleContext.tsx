@@ -7,15 +7,15 @@ interface RoleContextType {
 }
 
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
-// stage-1 branch is intentionally admin-only.
+// stage-1 preview supports a limited role set.
 const isStagePreview = true;
+const stagePreviewAllowedRoles: UserRole[] = ['sales', 'admin'];
 
 export function RoleProvider({ children }: { children: ReactNode }) {
-  const [currentRole, setCurrentRoleState] = useState<UserRole>('admin');
+  const [currentRole, setCurrentRoleState] = useState<UserRole>('sales');
 
   const setCurrentRole = (role: UserRole) => {
-    if (isStagePreview) {
-      // In stage preview we keep an admin-only view across all screens.
+    if (isStagePreview && !stagePreviewAllowedRoles.includes(role)) {
       return;
     }
     setCurrentRoleState(role);

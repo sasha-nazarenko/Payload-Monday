@@ -46,8 +46,11 @@ export function RoleSwitcher({ currentRole, onRoleChange }: RoleSwitcherProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  // stage-1 branch is intentionally admin-only.
+  // stage-1 preview supports sales + admin.
   const isStagePreview = true;
+  const selectableRoles = isStagePreview
+    ? (['sales', 'admin'] as UserRole[])
+    : (Object.keys(roleInfo) as UserRole[]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -66,9 +69,7 @@ export function RoleSwitcher({ currentRole, onRoleChange }: RoleSwitcherProps) {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => {
-          if (!isStagePreview) {
-            setIsOpen(!isOpen);
-          }
+          setIsOpen(!isOpen);
         }}
         className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-gray-50 transition-colors"
       >
@@ -85,16 +86,14 @@ export function RoleSwitcher({ currentRole, onRoleChange }: RoleSwitcherProps) {
             {currentRoleInfo.label}
           </p>
         </div>
-        {!isStagePreview && (
-          <ChevronDown 
-            size={16} 
-            style={{ color: 'var(--jolly-text-disabled)' }}
-            className={`transition-transform ${isOpen ? 'rotate-180' : ''}`}
-          />
-        )}
+        <ChevronDown 
+          size={16} 
+          style={{ color: 'var(--jolly-text-disabled)' }}
+          className={`transition-transform ${isOpen ? 'rotate-180' : ''}`}
+        />
       </button>
 
-      {isOpen && !isStagePreview && (
+      {isOpen && (
         <div 
           className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded shadow-lg border overflow-hidden"
           style={{ 
@@ -102,7 +101,9 @@ export function RoleSwitcher({ currentRole, onRoleChange }: RoleSwitcherProps) {
             boxShadow: '0 4px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06)'
           }}
         >
-          {Object.values(roleInfo).map((role) => (
+          {selectableRoles.map((roleKey) => {
+            const role = roleInfo[roleKey];
+            return (
             <button
               key={role.role}
               onClick={() => {
@@ -126,7 +127,8 @@ export function RoleSwitcher({ currentRole, onRoleChange }: RoleSwitcherProps) {
                 </p>
               </div>
             </button>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

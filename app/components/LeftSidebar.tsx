@@ -19,8 +19,13 @@ interface LeftSidebarProps {
 
 export function LeftSidebar({ currentRole, onRoleChange }: LeftSidebarProps) {
   const location = useLocation();
+  const isStagePreview = true;
   
-  const navItems: NavItem[] = currentRole === 'admin' 
+  const navItems: NavItem[] = isStagePreview && currentRole === 'sales'
+    ? [
+        { name: 'My Proposals', icon: <ClipboardList size={18} />, active: location.pathname.startsWith('/proposals') || location.pathname === '/', badge: 3, path: '/proposals' },
+      ]
+    : currentRole === 'admin' 
     ? [
         { name: 'Catalogue health', icon: <LayoutDashboard size={18} />, active: location.pathname === '/dashboard', path: '/dashboard' },
         { name: 'Products', icon: <Package size={18} />, active: location.pathname === '/' || location.pathname.startsWith('/product'), path: '/' },
