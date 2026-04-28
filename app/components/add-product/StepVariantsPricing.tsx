@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { Plus, X, Edit, Trash2, Info, AlertTriangle, ChevronDown, LayoutList, Star, Sparkles, Ban, Truck, Link2, Database, Pencil } from 'lucide-react';
-import { ProductFormData, Variant, PricingTier, getTemplates, PriceCurveTemplate, DECORATION_METHODS_LIST } from './types';
+import { ProductFormData, Variant, PricingTier, getTemplates, PriceCurveTemplate } from './types';
 import { BelowMoqSurcharge } from './BelowMoqSurcharge';
 import { YesNoToggle } from '../YesNoToggle';
 import { getDecoratorRateCard } from '../../data/decoratorData';
@@ -32,7 +32,7 @@ export function StepVariantsPricing({ formData, onUpdate, currentRole, errors }:
   const [previewQtyIndex, setPreviewQtyIndex] = useState(0);
   // Track which tier rows the admin has unlocked for editing (overriding decorator values)
   const [tierOverrides, setTierOverrides] = useState<Record<string, boolean>>({});
-  const [previewDecorator, setPreviewDecorator] = useState('Screen Print');
+  const [previewMethodId, setPreviewMethodId] = useState('');
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
   const [allTemplates] = useState<PriceCurveTemplate[]>(loadTemplates);
   const templateMenuRef = useRef<HTMLDivElement>(null);
@@ -174,10 +174,11 @@ export function StepVariantsPricing({ formData, onUpdate, currentRole, errors }:
   const previewTier = pricingTiers[previewQtyIndex] || pricingTiers[0];
   const baseCost = previewTier?.unitCost || 0;
 
-  // Decoration cost: use run cost of preferred (or first) method; 0 if none configured yet.
+  // Decoration cost: use run cost of the selected preview method (or preferred/first if only one).
   const decorationConfigured = decorationMethods.length > 0;
   const preferredMethod = decorationMethods.find(d => d.preferred) ?? decorationMethods[0];
-  const decorationCost = decorationConfigured ? (preferredMethod?.runCost ?? 1.20) : 0;
+  const previewMethod = decorationMethods.find(d => d.id === previewMethodId) ?? preferredMethod;
+  const decorationCost = decorationConfigured ? (previewMethod?.runCost ?? 0) : 0;
 
   // Freight: two legs when supplier ≠ decorator; single leg when supplier IS decorator.
   const totalFreight = supplierIsDecorator ? freightLeg2 : (freightLeg1 + freightLeg2);
@@ -1158,7 +1159,7 @@ export function StepVariantsPricing({ formData, onUpdate, currentRole, errors }:
                     Sell price unavailable until decoration is configured
                   </p>
                   <p style={{ fontSize: '12px', color: 'var(--jolly-text-disabled)', margin: '2px 0 0' }}>
-                    Complete <strong>Step 3 — Decoration</strong> to unlock the full sell price preview and margin check.
+                    Complete <strong>Step 2 — Decoration</strong> to unlock the full sell price preview and margin check.
                   </p>
                 </div>
               </div>
@@ -1197,16 +1198,24 @@ export function StepVariantsPricing({ formData, onUpdate, currentRole, errors }:
                   </div>
                   <div className="flex items-center gap-2">
                     <span style={{ fontSize: '12px', color: 'var(--jolly-text-secondary)' }}>Method:</span>
-                    <select
-                      value={previewDecorator}
-                      onChange={(e) => setPreviewDecorator(e.target.value)}
-                      className="px-2 py-1 rounded"
-                      style={{ ...inputStyle, height: '28px', fontSize: '13px', width: 'auto' }}
-                    >
-                      {DECORATION_METHODS_LIST.slice(0, 4).map(m => (
-                        <option key={m} value={m}>{m}</option>
-                      ))}
-                    </select>
+                    {decorationMethods.length > 1 ? (
+                      <select
+                        value={previewMethodId || preferredMethod?.id || ''}
+                        onChange={(e) => setPreviewMethodId(e.target.value)}
+                        className="px-2 py-1 rounded"
+                        style={{ ...inputStyle, height: '28px', fontSize: '13px', width: 'auto' }}
+                      >
+                        {decorationMethods.map(m => (
+                          <option key={m.id} value={m.id}>
+                            {m.method}{m.preferred ? ' ★' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span style={{ fontSize: '13px', color: 'var(--jolly-text-body)', fontWeight: 500 }}>
+                        {previewMethod?.method ?? '—'}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1233,7 +1242,7 @@ export function StepVariantsPricing({ formData, onUpdate, currentRole, errors }:
 
                     <tr style={{ borderTop: '1px solid var(--jolly-border)' }}>
                       <td className="py-2.5 px-4" style={{ color: 'var(--jolly-text-secondary)' }}>
-                        + Decoration cost ({preferredMethod?.method ?? previewDecorator})
+                        + Decoration cost ({previewMethod?.method ?? '—'})
                       </td>
                       <td className="py-2.5 px-4 text-right" style={{ fontWeight: 500, color: 'var(--jolly-text-body)', fontFamily: 'monospace' }}>
                         ${decorationCost.toFixed(2)}

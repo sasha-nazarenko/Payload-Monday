@@ -71,8 +71,6 @@ export interface ProductFormData {
   pricingTiers: PricingTier[];
   marginTarget: number;
   marginFloor: number;
-  /** @deprecated use freightLeg1 + freightLeg2 instead */
-  freightAllocation: number;
   rushFee: number;
   minOrderQty: number;
   maxOrderQty: number | null;
@@ -99,6 +97,15 @@ export interface StepInfo {
 
 export type StepStatus = StepInfo['status'];
 
+// ─── Global Price Curve (persisted in localStorage) ───────────────────────────
+
+export const DEFAULT_PRICE_CURVE: PricingTier[] = [
+  { id: 'default-1', minQty: 1,   maxQty: 49,  unitCost: 6.80 },
+  { id: 'default-2', minQty: 50,  maxQty: 99,  unitCost: 5.20 },
+  { id: 'default-3', minQty: 100, maxQty: 249, unitCost: 4.20 },
+  { id: 'default-4', minQty: 250, maxQty: null, unitCost: 3.80 },
+];
+
 export const INITIAL_FORM_DATA: ProductFormData = {
   productName: '',
   supplier: '',
@@ -114,19 +121,10 @@ export const INITIAL_FORM_DATA: ProductFormData = {
   primaryDecoratorSupplier: '',
   bespokeDecorationDescription: '',
   bespokeAddons: [],
-  variants: [
-    { id: '1', name: 'Natural', sku: 'AS-CT001-NAT', supplierSku: '(auto from APPA)', status: 'active', source: 'appa' },
-    { id: '2', name: 'Black', sku: 'AS-CT001-BLK', supplierSku: '(auto from APPA)', status: 'active', source: 'appa' },
-  ],
-  pricingTiers: [
-    { id: '1', minQty: 1, maxQty: 49, unitCost: 6.80 },
-    { id: '2', minQty: 50, maxQty: 99, unitCost: 5.20 },
-    { id: '3', minQty: 100, maxQty: 249, unitCost: 4.20 },
-    { id: '4', minQty: 250, maxQty: null, unitCost: 3.80 },
-  ],
+  variants: [],
+  pricingTiers: DEFAULT_PRICE_CURVE,
   marginTarget: 42,
   marginFloor: 25,
-  freightAllocation: 0.80,
   rushFee: 0.50,
   minOrderQty: 50,
   maxOrderQty: null,
@@ -138,22 +136,7 @@ export const INITIAL_FORM_DATA: ProductFormData = {
   belowMoqSurchargeType: 'none',
   belowMoqSurchargeValue: 0,
   belowMoqNote: '',
-  decorationMethods: [
-    {
-      id: 'dm1',
-      method: 'Screen Print',
-      preferred: true,
-      printAreaWidth: 280,
-      printAreaHeight: 200,
-      maxColors: 4,
-      positionX: 50,
-      positionY: 80,
-      decorator: 'PromoLine Decorators',
-      setupCost: 45.00,
-      runCost: 1.20,
-      notes: 'Full front print area. Max 4 spot colours.',
-    },
-  ],
+  decorationMethods: [],
   assets: [],
 };
 
@@ -190,23 +173,12 @@ export const DECORATION_METHODS_LIST = [
 ];
 
 /** The six primary decoration methods shown in the Step 2 primary dropdown. */
-export const PRIMARY_DECORATION_METHODS = [
-  'Screen Print', 'Pad Print', 'Laser Engraving', 'Embroidery', 'Deboss', 'Digital Print',
-];
+export const PRIMARY_DECORATION_METHODS = DECORATION_METHODS_LIST.slice(0, 6);
 
 export const DECORATORS = [
   'Print Co Melbourne', 'BrandPrint Sydney', 'EmbroidMe Brisbane',
   'LaserEdge Engraving', 'SubliMax Perth', 'FullSpectrum Digital',
   'PromoLine Decorators', 'StitchMaster Embroidery', 'InkWorks Australia',
-];
-
-// ─── Global Price Curve (persisted in localStorage) ───────────────────────────
-
-export const DEFAULT_PRICE_CURVE: PricingTier[] = [
-  { id: 'default-1', minQty: 1,   maxQty: 49,  unitCost: 6.80 },
-  { id: 'default-2', minQty: 50,  maxQty: 99,  unitCost: 5.20 },
-  { id: 'default-3', minQty: 100, maxQty: 249, unitCost: 4.20 },
-  { id: 'default-4', minQty: 250, maxQty: null, unitCost: 3.80 },
 ];
 
 // ─── Price Curve Template ─────────────────────────────────────────────────────
@@ -231,12 +203,7 @@ const SEED_TEMPLATES: PriceCurveTemplate[] = [
     isBuiltIn: true,
     createdAt: '2025-01-01T00:00:00Z',
     updatedAt: '2025-01-01T00:00:00Z',
-    tiers: [
-      { id: 's1', minQty: 1,   maxQty: 49,  unitCost: 6.80 },
-      { id: 's2', minQty: 50,  maxQty: 99,  unitCost: 5.20 },
-      { id: 's3', minQty: 100, maxQty: 249, unitCost: 4.20 },
-      { id: 's4', minQty: 250, maxQty: null, unitCost: 3.80 },
-    ],
+    tiers: DEFAULT_PRICE_CURVE.map((t, i) => ({ ...t, id: `s${i + 1}` })),
   },
   {
     id: 'tpl-high-volume',
