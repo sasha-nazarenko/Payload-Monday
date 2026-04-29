@@ -66,7 +66,7 @@ type QueueMainTab = 'appa-conflicts' | 'incomplete';
 
 export function Dashboard() {
   const [searchParams] = useSearchParams();
-  const { currentRole, setCurrentRole } = useRole();
+  const { currentRole } = useRole();
   const appaMonitoringRef = useRef<HTMLDivElement>(null);
   const workQueuesRef = useRef<HTMLDivElement>(null);
 
@@ -162,7 +162,7 @@ export function Dashboard() {
 
   return (
     <div className="flex h-screen" style={{ backgroundColor: 'var(--jolly-bg)', fontFamily: 'Inter, system-ui, sans-serif' }}>
-      <LeftSidebar currentRole={currentRole} onRoleChange={setCurrentRole} />
+      <LeftSidebar currentRole={currentRole} />
 
       <div className="flex-1 overflow-auto">
         <div

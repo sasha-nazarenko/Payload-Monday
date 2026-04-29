@@ -6,7 +6,6 @@ import { ProductGrid } from '../components/ProductGrid';
 import { useFilters } from '../context/FilterContext';
 import { useRole } from '../context/RoleContext';
 import { useStorefront } from '../context/StorefrontContext';
-import { UserRole } from '../types';
 import { mockProducts } from '../data/mockProducts';
 import { filterProducts } from '../utils/filterProducts';
 import { canPublishProduct, getMissingFields } from '../utils/storefrontRequirements';
@@ -17,7 +16,7 @@ import {
 
 export function ProductCatalogue() {
   const { filters } = useFilters();
-  const { currentRole, setCurrentRole } = useRole();
+  const { currentRole } = useRole();
   const { bulkSetStatus } = useStorefront();
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -26,7 +25,7 @@ export function ProductCatalogue() {
   const [bulkToast, setBulkToast] = useState<string | null>(null);
   const productsPerPage = 9;
 
-  const isAdmin = currentRole === 'admin';
+  const isAdmin = false;
 
   // Apply filters to products
   const filteredProducts = filterProducts(mockProducts, filters);
@@ -53,10 +52,6 @@ export function ProductCatalogue() {
       const contentArea = document.getElementById('product-grid-area');
       if (contentArea) contentArea.scrollTop = 0;
     }
-  };
-
-  const handleRoleChange = (role: UserRole) => {
-    setCurrentRole(role);
   };
 
   const handleToggleSelect = (productId: string) => {
@@ -119,7 +114,7 @@ export function ProductCatalogue() {
       }}
     >
       {/* Left Sidebar Navigation */}
-      <LeftSidebar currentRole={currentRole} onRoleChange={handleRoleChange} />
+      <LeftSidebar currentRole={currentRole} />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">

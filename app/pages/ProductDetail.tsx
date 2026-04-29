@@ -5,7 +5,6 @@ import { LeftSidebar } from '../components/LeftSidebar';
 import { mockProducts } from '../data/mockProducts';
 import { useRole } from '../context/RoleContext';
 import { useStorefront } from '../context/StorefrontContext';
-import { UserRole } from '../types';
 import { PricingTier } from '../components/add-product/types';
 import { BelowMoqSurcharge, BelowMoqValues } from '../components/add-product/BelowMoqSurcharge';
 import { YesNoToggle } from '../components/YesNoToggle';
@@ -13,7 +12,7 @@ import { canPublishProduct, getMissingFields } from '../utils/storefrontRequirem
 
 export function ProductDetail() {
   const { productId } = useParams<{ productId: string }>();
-  const { currentRole, setCurrentRole } = useRole();
+  const { currentRole } = useRole();
   const { getStatus, setStatus } = useStorefront();
   const [selectedVariant, setSelectedVariant] = useState('Natural');
   const [activeTab, setActiveTab] = useState<'specs' | 'pricing' | 'assets' | 'notes'>('specs');
@@ -160,10 +159,6 @@ export function ProductDetail() {
   const marginFloor = 25;
   const isBelowFloor = margin < marginFloor;
 
-  const handleRoleChange = (role: UserRole) => {
-    setCurrentRole(role);
-  };
-
   const handleMarginChange = (newMargin: number) => {
     setMargin(Math.max(0, Math.min(100, newMargin)));
   };
@@ -200,7 +195,7 @@ export function ProductDetail() {
       }}
     >
       {/* Left Sidebar Navigation */}
-      <LeftSidebar currentRole={currentRole} onRoleChange={handleRoleChange} />
+      <LeftSidebar currentRole={currentRole} />
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto">

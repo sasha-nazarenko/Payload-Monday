@@ -88,7 +88,7 @@ function cloneTiers(tiers: PricingTier[]): PricingTier[] {
 }
 
 export function PriceCurveSettings() {
-  const { currentRole, setCurrentRole } = useRole();
+  const { currentRole } = useRole();
   const isAdmin = currentRole === 'admin';
 
   const [tiers, setTiers] = useState<PricingTier[]>([]);
@@ -134,7 +134,7 @@ export function PriceCurveSettings() {
       className="flex h-screen overflow-hidden"
       style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', backgroundColor: 'var(--jolly-bg)' }}
     >
-      <LeftSidebar currentRole={currentRole} onRoleChange={setCurrentRole as (r: UserRole) => void} />
+      <LeftSidebar currentRole={currentRole} />
 
       <div className="flex flex-1 flex-col overflow-hidden">
         <div

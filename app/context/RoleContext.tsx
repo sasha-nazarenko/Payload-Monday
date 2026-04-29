@@ -7,18 +7,13 @@ interface RoleContextType {
 }
 
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
-// stage-1 preview supports a limited role set.
-const isStagePreview = true;
-const stagePreviewAllowedRoles: UserRole[] = ['sales', 'admin'];
 
 export function RoleProvider({ children }: { children: ReactNode }) {
-  const [currentRole, setCurrentRoleState] = useState<UserRole>('sales');
+  const [currentRole] = useState<UserRole>('admin');
 
-  const setCurrentRole = (role: UserRole) => {
-    if (isStagePreview && !stagePreviewAllowedRoles.includes(role)) {
-      return;
-    }
-    setCurrentRoleState(role);
+  const setCurrentRole = (_role: UserRole) => {
+    // Role switching is intentionally disabled: the app runs in admin mode only.
+    return;
   };
 
   return (

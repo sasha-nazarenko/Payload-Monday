@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, Fragment } from 'react';
 import { LeftSidebar } from '../components/LeftSidebar';
 import { useRole } from '../context/RoleContext';
 import { Link, useLocation } from 'react-router';
-import { Button } from '@payloadcms/ui';
+import { PayloadUIButton as Button } from '../components/ui/payload-button';
 import {
   ChevronDown,
   ChevronRight,
@@ -536,7 +536,7 @@ export function ProposalBuilder({
   const statusOptions: ProposalStatus[] = isDesignRequestFlow
     ? allStatuses
     : ['Draft', 'Sent', 'Approved', 'Won', 'Lost'];
-  const { currentRole, setCurrentRole } = useRole();
+  const { currentRole } = useRole();
   const [status, setStatus] = useState<ProposalStatus>(
     isDesignRequestFlow ? 'Design request' : 'Draft'
   );
@@ -666,7 +666,7 @@ export function ProposalBuilder({
       className="flex h-screen payload-sales-root payload-project-screen project-detail-screen"
       style={{ backgroundColor: 'var(--jolly-bg)', fontFamily: 'Inter, system-ui, sans-serif' }}
     >
-      <LeftSidebar currentRole={currentRole} onRoleChange={setCurrentRole} />
+      <LeftSidebar currentRole={currentRole} />
 
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden project-detail-main">
         {/* TOP BAR */}

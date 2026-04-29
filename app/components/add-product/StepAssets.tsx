@@ -325,35 +325,36 @@ export function StepAssets({ formData, onUpdate }: StepAssetsProps) {
       />
 
       {/* Website storefront assets */}
-      <div
-        className="rounded"
-        style={{
-          backgroundColor: 'var(--jolly-card)',
-          borderRadius: '6px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05)',
-        }}
-      >
-        <div className="p-6 border-b" style={{ borderColor: 'var(--jolly-border)' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
-            Website assets
-          </h2>
-          <p style={{ fontSize: '13px', color: 'var(--jolly-text-secondary)', marginTop: '2px' }}>
-            Tile, hover, and variant images are only required when this product should appear on the public website.
-          </p>
-        </div>
-        <div className="p-6 space-y-5">
-          <div
-            className="flex flex-wrap items-center justify-between gap-4 p-4 rounded"
-            style={{ backgroundColor: 'var(--jolly-bg)', border: '1px solid var(--jolly-border)', borderRadius: '6px' }}
-          >
-            <div>
-              <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>Live on website</p>
-              <p style={{ fontSize: '12px', color: 'var(--jolly-text-secondary)', marginTop: '4px', maxWidth: '480px' }}>
-                Turn on only when the storefront listing is active. You cannot enable this until tile, hover, and variant images are all uploaded.
-              </p>
-            </div>
-            <YesNoToggle value={liveOnWebsiteBool} onChange={trySetLiveOnWebsite} />
+      {!proposalOnly ? (
+        <div
+          className="rounded"
+          style={{
+            backgroundColor: 'var(--jolly-card)',
+            borderRadius: '6px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05)',
+          }}
+        >
+          <div className="p-6 border-b" style={{ borderColor: 'var(--jolly-border)' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
+              Website assets
+            </h2>
+            <p style={{ fontSize: '13px', color: 'var(--jolly-text-secondary)', marginTop: '2px' }}>
+              Tile, hover, and variant images are only required when this product should appear on the public website.
+            </p>
           </div>
+          <div className="p-6 space-y-5">
+            <div
+              className="flex flex-wrap items-center justify-between gap-4 p-4 rounded"
+              style={{ backgroundColor: 'var(--jolly-bg)', border: '1px solid var(--jolly-border)', borderRadius: '6px' }}
+            >
+              <div>
+                <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>Live on website</p>
+                <p style={{ fontSize: '12px', color: 'var(--jolly-text-secondary)', marginTop: '4px', maxWidth: '480px' }}>
+                  Turn on only when the storefront listing is active. You cannot enable this until tile, hover, and variant images are all uploaded.
+                </p>
+              </div>
+              <YesNoToggle value={liveOnWebsiteBool} onChange={trySetLiveOnWebsite} />
+            </div>
 
           {liveWebsiteHint && (
             <div
@@ -365,78 +366,101 @@ export function StepAssets({ formData, onUpdate }: StepAssetsProps) {
             </div>
           )}
 
-          <div
-            className="flex items-start gap-2 p-3 rounded"
-            style={{ backgroundColor: 'var(--jolly-surface)', fontSize: '13px', color: 'var(--jolly-text-body)', borderRadius: '6px', border: '1px solid var(--jolly-accent)' }}
-          >
-            <Info size={16} style={{ flexShrink: 0, marginTop: '2px', color: 'var(--jolly-primary)' }} />
-            <span>
-              <strong>When is each field required?</strong> Tile, hover, and variant images stay optional for catalogue-only or internal use.
-              They become <strong>mandatory</strong> as soon as <strong>Live on website</strong> is Yes. If you remove an image while live is on, Live on website turns off automatically until requirements are met again.
-            </span>
-          </div>
+            <div
+              className="flex items-start gap-2 p-3 rounded"
+              style={{ backgroundColor: 'var(--jolly-surface)', fontSize: '13px', color: 'var(--jolly-text-body)', borderRadius: '6px', border: '1px solid var(--jolly-accent)' }}
+            >
+              <Info size={16} style={{ flexShrink: 0, marginTop: '2px', color: 'var(--jolly-primary)' }} />
+              <span>
+                <strong>When is each field required?</strong> Tile, hover, and variant images stay optional for catalogue-only or internal use.
+                They become <strong>mandatory</strong> as soon as <strong>Live on website</strong> is Yes. If you remove an image while live is on, Live on website turns off automatically until requirements are met again.
+              </span>
+            </div>
 
-          <div>
-            <h3 className="flex flex-wrap items-center gap-2 mb-3" style={{ fontSize: '15px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
-              Tile image (website grid)
-              {liveOnWebsiteBool ? (
-                <span style={{ color: 'var(--jolly-destructive)', fontSize: '13px', fontWeight: 700 }}>* required</span>
-              ) : (
-                <span className="px-2 py-0.5 rounded" style={{ backgroundColor: 'var(--jolly-bg)', fontSize: '11px', fontWeight: 600, color: 'var(--jolly-text-secondary)', border: '1px solid var(--jolly-border)' }}>
-                  optional unless live
-                </span>
-              )}
-            </h3>
-            <UploadZone
-              category="website_tile"
-              label="Upload tile image"
-              accept="PNG, JPG, WEBP"
-              maxSize="10 MB per file"
-            />
-          </div>
+            <div>
+              <h3 className="flex flex-wrap items-center gap-2 mb-3" style={{ fontSize: '15px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
+                Tile image (website grid)
+                {liveOnWebsiteBool ? (
+                  <span style={{ color: 'var(--jolly-destructive)', fontSize: '13px', fontWeight: 700 }}>* required</span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded" style={{ backgroundColor: 'var(--jolly-bg)', fontSize: '11px', fontWeight: 600, color: 'var(--jolly-text-secondary)', border: '1px solid var(--jolly-border)' }}>
+                    optional unless live
+                  </span>
+                )}
+              </h3>
+              <UploadZone
+                category="website_tile"
+                label="Upload tile image"
+                accept="PNG, JPG, WEBP"
+                maxSize="10 MB per file"
+              />
+            </div>
 
-          <div>
-            <h3 className="flex flex-wrap items-center gap-2 mb-3" style={{ fontSize: '15px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
-              Hover image
-              {liveOnWebsiteBool ? (
-                <span style={{ color: 'var(--jolly-destructive)', fontSize: '13px', fontWeight: 700 }}>* required</span>
-              ) : (
-                <span className="px-2 py-0.5 rounded" style={{ backgroundColor: 'var(--jolly-bg)', fontSize: '11px', fontWeight: 600, color: 'var(--jolly-text-secondary)', border: '1px solid var(--jolly-border)' }}>
-                  optional unless live
-                </span>
-              )}
-            </h3>
-            <UploadZone
-              category="website_hover"
-              label="Upload hover image"
-              accept="PNG, JPG, WEBP"
-              maxSize="10 MB per file"
-            />
-          </div>
+            <div>
+              <h3 className="flex flex-wrap items-center gap-2 mb-3" style={{ fontSize: '15px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
+                Hover image
+                {liveOnWebsiteBool ? (
+                  <span style={{ color: 'var(--jolly-destructive)', fontSize: '13px', fontWeight: 700 }}>* required</span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded" style={{ backgroundColor: 'var(--jolly-bg)', fontSize: '11px', fontWeight: 600, color: 'var(--jolly-text-secondary)', border: '1px solid var(--jolly-border)' }}>
+                    optional unless live
+                  </span>
+                )}
+              </h3>
+              <UploadZone
+                category="website_hover"
+                label="Upload hover image"
+                accept="PNG, JPG, WEBP"
+                maxSize="10 MB per file"
+              />
+            </div>
 
-          <div>
-            <h3 className="flex flex-wrap items-center gap-2 mb-3" style={{ fontSize: '15px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
-              Variant images (website)
-              {liveOnWebsiteBool ? (
-                <span style={{ color: 'var(--jolly-destructive)', fontSize: '13px', fontWeight: 700 }}>* required</span>
-              ) : (
-                <span className="px-2 py-0.5 rounded" style={{ backgroundColor: 'var(--jolly-bg)', fontSize: '11px', fontWeight: 600, color: 'var(--jolly-text-secondary)', border: '1px solid var(--jolly-border)' }}>
-                  optional unless live
-                </span>
-              )}
-            </h3>
-            <p className="mb-3" style={{ fontSize: '12px', color: 'var(--jolly-text-secondary)' }}>
-              Add one or more images for storefront variants (e.g. per colour). At least one file is required when Live on website is on.
-            </p>
-            <UploadZone
-              category="website_variant"
-              label="Upload variant images"
-              accept="PNG, JPG, WEBP"
-              maxSize="10 MB per file"
-            />
+            <div>
+              <h3 className="flex flex-wrap items-center gap-2 mb-3" style={{ fontSize: '15px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
+                Variant images (website)
+                {liveOnWebsiteBool ? (
+                  <span style={{ color: 'var(--jolly-destructive)', fontSize: '13px', fontWeight: 700 }}>* required</span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded" style={{ backgroundColor: 'var(--jolly-bg)', fontSize: '11px', fontWeight: 600, color: 'var(--jolly-text-secondary)', border: '1px solid var(--jolly-border)' }}>
+                    optional unless live
+                  </span>
+                )}
+              </h3>
+              <p className="mb-3" style={{ fontSize: '12px', color: 'var(--jolly-text-secondary)' }}>
+                Add one or more images for storefront variants (e.g. per colour). At least one file is required when Live on website is on.
+              </p>
+              <UploadZone
+                category="website_variant"
+                label="Upload variant images"
+                accept="PNG, JPG, WEBP"
+                maxSize="10 MB per file"
+              />
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div
+          className="rounded p-6"
+          style={{
+            backgroundColor: 'var(--jolly-card)',
+            borderRadius: '6px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05)',
+            border: '1px solid var(--jolly-border)',
+          }}
+        >
+          <div className="flex items-start gap-2">
+            <Info size={16} style={{ marginTop: '2px', color: 'var(--jolly-primary)', flexShrink: 0 }} />
+            <div>
+              <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
+                Website assets are hidden for Proposal-Only products
+              </p>
+              <p style={{ fontSize: '13px', color: 'var(--jolly-text-secondary)', marginTop: '4px' }}>
+                Proposal-only products are not published to the storefront, so tile, hover, and variant website images are not needed.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Section A: Product Images */}
       <div

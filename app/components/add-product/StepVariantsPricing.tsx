@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Plus, X, Edit, Trash2, Info, AlertTriangle, Truck, Link2, Pencil } from 'lucide-react';
+import { Plus, X, Edit, Trash2, Info, AlertTriangle, Truck, Link2, Pencil, HelpCircle } from 'lucide-react';
 import {
   ProductFormData, Variant, PricingTier, DECORATION_METHODS_LIST, DEFAULT_APPA_FREIGHT,
   normalizeBespokeAddon, sumBespokeAddonsForTier,
@@ -20,6 +20,36 @@ export function StepVariantsPricing({ formData, onUpdate, currentRole, errors }:
   const [newVariantSku, setNewVariantSku] = useState('');
   const [previewQtyIndex, setPreviewQtyIndex] = useState(0);
   const [previewDecorator, setPreviewDecorator] = useState('Screen Print');
+  const [showTip, setShowTip] = useState<string | null>(null);
+
+  // Tooltip component
+  const Tooltip = ({ text, children }: { text: string; children: React.ReactNode }) => (
+    <div style={{ position: 'relative', display: 'inline-block' }}>
+      {children}
+      {showTip === text && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '100%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: '#333',
+            color: 'white',
+            padding: '8px 12px',
+            borderRadius: '4px',
+            fontSize: '12px',
+            maxWidth: '220px',
+            zIndex: 1000,
+            whiteSpace: 'normal',
+            marginBottom: '8px',
+            pointerEvents: 'none',
+          }}
+        >
+          {text}
+        </div>
+      )}
+    </div>
+  );
 
   const { variants, pricingTiers, marginTarget, marginFloor, rushFee, minOrderQty, maxOrderQty,
     allowBelowMoq, belowMoqSurchargeType, belowMoqSurchargeValue,
@@ -95,6 +125,8 @@ export function StepVariantsPricing({ formData, onUpdate, currentRole, errors }:
       minQty: newMin,
       maxQty: null,
       unitCost: lastTier ? Math.max(lastTier.unitCost - 0.50, 0.50) : 5.00,
+      marginTargetPct: lastTier?.marginTargetPct ?? marginTarget,
+      marginFloorPct: lastTier?.marginFloorPct ?? marginFloor,
       source: 'manual',
     };
     const currentTierIds = pricingTiers.map(t => t.id);
@@ -117,6 +149,52 @@ export function StepVariantsPricing({ formData, onUpdate, currentRole, errors }:
         t.id === id ? { ...t, [field]: value, source: 'manual' as const } : t
       ),
     });
+  };
+
+  const getTierFreight = (tierId: string | undefined) => {
+    if (isAppaSource) return appaShippingPerUnit;
+    return supplierIsDecorator ? freightLeg2 : (freightLeg1 + freightLeg2);
+  };
+
+  const getTierBespoke = (tierId: string | undefined) => {
+    return isBespoke && tierId ? sumBespokeAddonsForTier(normalizedBespokeAddons, tierId) : 0;
+  };
+
+  const getTierTotalCost = (tier: PricingTier | undefined) => {
+    if (!tier) return 0;
+    const freight = getTierFreight(tier.id);
+    const bespoke = getTierBespoke(tier.id);
+    return (tier.unitCost || 0) + decorationCost + freight + bespoke;
+  };
+
+  const getTierTargetMargin = (tier: PricingTier) => {
+    return typeof tier.marginTargetPct === 'number' ? tier.marginTargetPct : marginTarget;
+  };
+
+  const getTierMarginFloor = (tier: PricingTier) => {
+    return typeof tier.marginFloorPct === 'number' ? tier.marginFloorPct : marginFloor;
+  };
+
+  const getTierSellPrice = (tier: PricingTier) => {
+    const target = getTierTargetMargin(tier);
+    const cost = getTierTotalCost(tier);
+    return target < 100 ? cost / (1 - target / 100) : 0;
+  };
+
+  const handleTierMarginTargetChange = (tierId: string, nextMargin: number) => {
+    handleTierChange(tierId, 'marginTargetPct', Math.min(Math.max(nextMargin, 0), 99.9));
+  };
+
+  const handleTierMarginFloorChange = (tierId: string, nextFloor: number) => {
+    handleTierChange(tierId, 'marginFloorPct', Math.max(nextFloor, 0));
+  };
+
+  const handleTierSellPriceChange = (tierId: string, nextSellPrice: number) => {
+    const tier = pricingTiers.find(t => t.id === tierId);
+    if (!tier) return;
+    const cost = getTierTotalCost(tier);
+    const margin = nextSellPrice > 0 ? (1 - (cost / nextSellPrice)) * 100 : 0;
+    handleTierMarginTargetChange(tierId, Number.isFinite(margin) ? margin : 0);
   };
 
   // Check for tier gaps
@@ -167,9 +245,9 @@ export function StepVariantsPricing({ formData, onUpdate, currentRole, errors }:
       ? sumBespokeAddonsForTier(normalizedBespokeAddons, previewTier.id)
       : 0;
   const totalLandedCost = baseCost + decorationCost + totalFreight + bespokePerUnit;
-  const marginPct = marginTarget;
+  const marginPct = previewTier ? getTierTargetMargin(previewTier) : marginTarget;
   const sellPrice = marginPct < 100 ? totalLandedCost / (1 - marginPct / 100) : 0;
-  const isBelowFloor = marginPct < marginFloor;
+  const isBelowFloor = marginPct < (previewTier ? getTierMarginFloor(previewTier) : marginFloor);
 
   // Freight label helpers
   const leg1Label = `+ Freight: Supplier → Decorator`;
@@ -415,13 +493,13 @@ export function StepVariantsPricing({ formData, onUpdate, currentRole, errors }:
 
             {/* Tier table */}
             <div
-              className="border rounded overflow-hidden"
+              className="border rounded overflow-x-auto"
               style={{
                 borderColor: 'var(--jolly-border)',
                 position: 'relative',
               }}
             >
-              <table className="w-full" style={{ fontSize: '14px' }}>
+              <table className="w-full" style={{ fontSize: '14px', minWidth: '1280px' }}>
                 <thead>
                   <tr style={{ backgroundColor: 'var(--jolly-header-bg)' }}>
                     <th className="text-left py-3 px-4" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--jolly-text-secondary)', width: '80px' }}>Tier</th>
@@ -430,12 +508,19 @@ export function StepVariantsPricing({ formData, onUpdate, currentRole, errors }:
                     <th className="text-left py-3 px-4" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--jolly-text-secondary)' }}>
                       {isBespoke ? 'Base Unit Cost (AUD)' : 'Unit Cost (AUD)'}
                     </th>
+                    <th className="text-left py-3 px-4" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--jolly-text-secondary)' }}>Target Margin %</th>
+                    <th className="text-left py-3 px-4" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--jolly-text-secondary)' }}>Margin Floor %</th>
+                    <th className="text-left py-3 px-4" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--jolly-text-secondary)' }}>Sell Price (AUD)</th>
                     <th className="text-left py-3 px-4" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--jolly-text-secondary)', width: '160px' }}>Source</th>
                     <th className="text-right py-3 px-4" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--jolly-text-secondary)', width: '60px' }}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {pricingTiers.map((tier, index) => {
+                    const tierTarget = getTierTargetMargin(tier);
+                    const tierFloor = getTierMarginFloor(tier);
+                    const tierSell = getTierSellPrice(tier);
+                    const tierWarn = tierTarget < tierFloor;
                     return (
                     <tr
                       key={tier.id}
@@ -478,6 +563,54 @@ export function StepVariantsPricing({ formData, onUpdate, currentRole, errors }:
                             style={{ ...inputStyle, height: '32px', width: '120px' }}
                           />
                         </div>
+                      </td>
+                      <td className="py-2 px-4">
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="99.9"
+                            value={Number(tierTarget.toFixed(1))}
+                            onChange={(e) => handleTierMarginTargetChange(tier.id, parseFloat(e.target.value) || 0)}
+                            className="w-full px-3 py-1.5"
+                            style={{ ...inputStyle, height: '32px', width: '112px' }}
+                          />
+                          <span style={{ color: 'var(--jolly-text-disabled)', fontSize: '12px' }}>%</span>
+                        </div>
+                      </td>
+                      <td className="py-2 px-4">
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            value={Number(tierFloor.toFixed(1))}
+                            onChange={(e) => handleTierMarginFloorChange(tier.id, parseFloat(e.target.value) || 0)}
+                            className="w-full px-3 py-1.5"
+                            style={{ ...inputStyle, height: '32px', width: '112px' }}
+                          />
+                          <span style={{ color: 'var(--jolly-text-disabled)', fontSize: '12px' }}>%</span>
+                        </div>
+                      </td>
+                      <td className="py-2 px-4">
+                        <div className="flex items-center gap-1">
+                          <span style={{ color: 'var(--jolly-text-disabled)', fontSize: '14px' }}>$</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={Number(tierSell.toFixed(2))}
+                            onChange={(e) => handleTierSellPriceChange(tier.id, parseFloat(e.target.value) || 0)}
+                            className="w-full px-3 py-1.5"
+                            style={{ ...inputStyle, height: '32px', width: '128px', borderColor: tierWarn ? 'var(--jolly-warning)' : 'var(--jolly-border)' }}
+                          />
+                        </div>
+                        {tierWarn && (
+                          <div style={{ fontSize: '10px', color: 'var(--jolly-warning)', marginTop: '3px' }}>
+                            Below floor
+                          </div>
+                        )}
                       </td>
                       {/* Source badge */}
                       <td className="py-2 px-4">
@@ -662,8 +795,16 @@ export function StepVariantsPricing({ formData, onUpdate, currentRole, errors }:
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block mb-2" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
-                  Margin Target (%) <span style={{ color: 'var(--jolly-destructive)' }}>*</span>
+                <label className="flex items-center gap-2 mb-2" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
+                  Default Margin Target (%)
+                  <Tooltip text="Target profit margin % for all products at this level. Sell price calculated as: total cost / (1 - margin%)">
+                    <HelpCircle
+                      size={16}
+                      style={{ cursor: 'pointer', color: 'var(--jolly-text-secondary)' }}
+                      onMouseEnter={() => setShowTip('Target profit margin % for all products at this level. Sell price calculated as: total cost / (1 - margin%)')}
+                      onMouseLeave={() => setShowTip(null)}
+                    />
+                  </Tooltip>
                 </label>
                 <input
                   type="number"
@@ -672,10 +813,21 @@ export function StepVariantsPricing({ formData, onUpdate, currentRole, errors }:
                   className="w-full px-4 py-2"
                   style={inputStyle}
                 />
+                <p className="mt-1.5" style={{ fontSize: '11px', color: 'var(--jolly-text-secondary)' }}>
+                  Used as fallback/default for tiers. Each tier can override in the table above.
+                </p>
               </div>
               <div>
-                <label className="block mb-2" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
-                  Margin Floor (%)
+                <label className="flex items-center gap-2 mb-2" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
+                  Default Margin Floor (%)
+                  <Tooltip text="Minimum acceptable margin threshold. Pricing below this level should be reviewed or approved by Finance.">
+                    <HelpCircle
+                      size={16}
+                      style={{ cursor: 'pointer', color: 'var(--jolly-text-secondary)' }}
+                      onMouseEnter={() => setShowTip('Minimum acceptable margin threshold. Pricing below this level should be reviewed or approved by Finance.')}
+                      onMouseLeave={() => setShowTip(null)}
+                    />
+                  </Tooltip>
                 </label>
                 <input
                   type="number"
@@ -797,6 +949,14 @@ export function StepVariantsPricing({ formData, onUpdate, currentRole, errors }:
                         <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
                           Supplier is Decorator
                         </span>
+                        <Tooltip text="Turn this on when the supplier also handles decoration, so only one freight leg is needed in landed cost calculations.">
+                          <HelpCircle
+                            size={14}
+                            style={{ cursor: 'pointer', color: 'var(--jolly-text-secondary)' }}
+                            onMouseEnter={() => setShowTip('Turn this on when the supplier also handles decoration, so only one freight leg is needed in landed cost calculations.')}
+                            onMouseLeave={() => setShowTip(null)}
+                          />
+                        </Tooltip>
                       </div>
                       <p style={{ fontSize: '12px', color: 'var(--jolly-text-secondary)', marginLeft: '22px' }}>
                         {supplierIsDecorator
@@ -838,8 +998,16 @@ export function StepVariantsPricing({ formData, onUpdate, currentRole, errors }:
                   <div className={`grid gap-4 ${supplierIsDecorator ? 'grid-cols-1' : 'grid-cols-2'}`}>
                     {!supplierIsDecorator && (
                       <div>
-                        <label className="block mb-1.5" style={{ fontSize: '13px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
+                        <label className="flex items-center gap-2 mb-1.5" style={{ fontSize: '13px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
                           Leg 1: Supplier → Decorator ($ / unit)
+                          <Tooltip text="Cost to ship from supplier to the decoration facility per unit.">
+                            <HelpCircle
+                              size={14}
+                              style={{ cursor: 'pointer', color: 'var(--jolly-text-secondary)' }}
+                              onMouseEnter={() => setShowTip('Cost to ship from supplier to the decoration facility per unit.')}
+                              onMouseLeave={() => setShowTip(null)}
+                            />
+                          </Tooltip>
                         </label>
                         <div className="flex items-center">
                           <span style={{
@@ -866,10 +1034,22 @@ export function StepVariantsPricing({ formData, onUpdate, currentRole, errors }:
                     )}
 
                     <div>
-                      <label className="block mb-1.5" style={{ fontSize: '13px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
+                      <label className="flex items-center gap-2 mb-1.5" style={{ fontSize: '13px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
                         {supplierIsDecorator
                           ? 'Supplier/Decorator → Jolly HQ ($ / unit)'
                           : 'Leg 2: Decorator → Jolly HQ ($ / unit)'}
+                        <Tooltip text={supplierIsDecorator
+                          ? 'Cost to ship finished decorated goods to Jolly HQ per unit.'
+                          : 'Cost to ship finished decorated goods from the decorator to Jolly HQ per unit.'}>
+                          <HelpCircle
+                            size={14}
+                            style={{ cursor: 'pointer', color: 'var(--jolly-text-secondary)' }}
+                            onMouseEnter={() => setShowTip(supplierIsDecorator
+                              ? 'Cost to ship finished decorated goods to Jolly HQ per unit.'
+                              : 'Cost to ship finished decorated goods from the decorator to Jolly HQ per unit.')}
+                            onMouseLeave={() => setShowTip(null)}
+                          />
+                        </Tooltip>
                       </label>
                       <div className="flex items-center">
                         <span style={{

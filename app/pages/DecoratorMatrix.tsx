@@ -535,7 +535,7 @@ function DecoratorDrawer({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function DecoratorMatrix() {
-  const { currentRole, setCurrentRole } = useRole();
+  const { currentRole } = useRole();
   const { mergeReview } = useDecoratorReview();
   const [decorators, setDecorators] = useState<Decorator[]>(INITIAL_DECORATORS);
   const [searchQuery, setSearchQuery] = useState('');
@@ -598,7 +598,7 @@ export function DecoratorMatrix() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', backgroundColor: 'var(--jolly-bg)', fontFamily: 'Inter, system-ui, sans-serif' }}>
-      <LeftSidebar currentRole={currentRole} onRoleChange={setCurrentRole} />
+      <LeftSidebar currentRole={currentRole} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {/* Top bar */}

@@ -5,6 +5,7 @@ import {
   ChevronDown,
   Info,
   StickyNote,
+  HelpCircle,
 } from 'lucide-react';
 import { YesNoToggle } from '../YesNoToggle';
 
@@ -54,6 +55,41 @@ export function BelowMoqSurcharge({ values, t1MinQty, onUpdate, editable = true 
 
   const selectedLabel = LIVE_OPTIONS.find(o => o.value === belowMoqSurchargeType)?.label ?? 'None';
 
+  const Tooltip = ({ children, text }: { children: React.ReactNode; text: string }) => {
+    const [showTip, setShowTip] = useState(false);
+    return (
+      <div
+        style={{ position: 'relative', display: 'inline-block' }}
+        onMouseEnter={() => setShowTip(true)}
+        onMouseLeave={() => setShowTip(false)}
+      >
+        {children}
+        {showTip && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '100%',
+              left: '0',
+              marginBottom: '8px',
+              backgroundColor: 'var(--jolly-text-body)',
+              color: 'white',
+              padding: '8px 12px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              lineHeight: '1.4',
+              maxWidth: '240px',
+              whiteSpace: 'normal',
+              zIndex: 1000,
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.15)',
+            }}
+          >
+            {text}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div style={{ opacity: editable ? 1 : 0.65 }}>
       {/* ── Allow Below MOQ ────────────────────────────────────────────────── */}
@@ -82,6 +118,9 @@ export function BelowMoqSurcharge({ values, t1MinQty, onUpdate, editable = true 
               <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
                 Allow Below MOQ
               </span>
+              <Tooltip text="Turn this on when you want to accept smaller orders than the standard minimum quantity, with optional compensation rules.">
+                <HelpCircle size={14} style={{ cursor: 'pointer', color: 'var(--jolly-text-secondary)' }} />
+              </Tooltip>
             </div>
             {/* Always-visible one-liner helper */}
             <p style={{ fontSize: '12px', color: 'var(--jolly-text-secondary)', marginLeft: '26px', lineHeight: 1.4 }}>
@@ -121,10 +160,13 @@ export function BelowMoqSurcharge({ values, t1MinQty, onUpdate, editable = true 
               {/* Surcharge Type — custom dropdown */}
               <div>
                 <label
-                  className="block mb-2"
+                  className="flex items-center gap-2 mb-2"
                   style={{ fontSize: '13px', fontWeight: 600, color: 'var(--jolly-text-body)' }}
                 >
                   Surcharge Type
+                  <Tooltip text="Choose how the below-MOQ charge should be calculated: none, a fixed dollar amount, or a percentage of unit cost.">
+                    <HelpCircle size={14} style={{ cursor: 'pointer', color: 'var(--jolly-text-secondary)' }} />
+                  </Tooltip>
                 </label>
                 <div className="relative" ref={dropdownRef}>
                   <button
@@ -289,10 +331,13 @@ export function BelowMoqSurcharge({ values, t1MinQty, onUpdate, editable = true 
               {/* Surcharge Value */}
               <div>
                 <label
-                  className="block mb-2"
+                  className="flex items-center gap-2 mb-2"
                   style={{ fontSize: '13px', fontWeight: 600, color: 'var(--jolly-text-body)' }}
                 >
                   Surcharge Value
+                  <Tooltip text="Enter the amount applied per unit when the order falls below MOQ. The meaning changes based on the selected surcharge type.">
+                    <HelpCircle size={14} style={{ cursor: 'pointer', color: 'var(--jolly-text-secondary)' }} />
+                  </Tooltip>
                   <span
                     className="ml-1"
                     style={{ fontSize: '12px', color: 'var(--jolly-text-secondary)', fontWeight: 400 }}
@@ -350,6 +395,9 @@ export function BelowMoqSurcharge({ values, t1MinQty, onUpdate, editable = true 
               >
                 <StickyNote size={13} style={{ color: 'var(--jolly-text-secondary)' }} />
                 Internal Note
+                <Tooltip text="Use this for approval rules or edge-case guidance. It is internal only and does not show on customer-facing outputs.">
+                  <HelpCircle size={14} style={{ cursor: 'pointer', color: 'var(--jolly-text-secondary)' }} />
+                </Tooltip>
                 <span
                   className="px-1.5 py-0.5 rounded"
                   style={{

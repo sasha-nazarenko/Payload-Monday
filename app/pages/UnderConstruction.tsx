@@ -6,7 +6,7 @@ import { Wrench, ArrowLeft } from 'lucide-react';
 export function UnderConstruction() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { currentRole, setCurrentRole } = useRole();
+  const { currentRole } = useRole();
 
   return (
     <div
@@ -16,7 +16,7 @@ export function UnderConstruction() {
         fontFamily: 'Inter, system-ui, sans-serif',
       }}
     >
-      <LeftSidebar currentRole={currentRole} onRoleChange={setCurrentRole} />
+      <LeftSidebar currentRole={currentRole} />
 
       <div className="flex-1 overflow-auto flex items-center justify-center">
         <div className="flex flex-col items-center text-center px-8" style={{ maxWidth: '480px' }}>

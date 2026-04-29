@@ -12,6 +12,10 @@ export interface PricingTier {
   minQty: number;
   maxQty: number | null;
   unitCost: number;
+  /** Tier-specific target margin percentage for sell-price calculation. */
+  marginTargetPct?: number;
+  /** Tier-specific minimum margin floor percentage. */
+  marginFloorPct?: number;
   /** Tracks how the row was populated so the Pricing step can badge auto-filled rows. */
   source?: 'decorator' | 'template' | 'manual';
 }
@@ -75,6 +79,79 @@ export function websiteStorefrontPackComplete(assets: AssetFile[]): boolean {
   return ok('website_tile') && ok('website_hover') && ok('website_variant');
 }
 
+// ── APPA Pricing Data Model ────────────────────────────────────────────────────
+
+export interface AppaPriceBreak {
+  qty: number;
+  price: number;
+}
+
+export interface AppaSupplierNotes {
+  sCode?: string;
+  sComment?: string;
+  sDec_Note?: string;
+  maxDecArea?: string;
+  sDecorator?: string;
+  decorationTitle?: string | null;
+  sPre_Production_Sample?: string;
+}
+
+export interface AppaBasePrice {
+  key: string;
+  type: string;
+  setup: number;
+  indent: boolean;
+  currency: string;
+  lead_time: string | null;
+  description: string;
+  undecorated: boolean;
+  price_breaks: AppaPriceBreak[];
+  tags?: string[];
+  promodata_decoration?: string;
+}
+
+export interface AppaAddition {
+  key: string;
+  free?: boolean;
+  tags?: string[];
+  type: string;
+  setup: number;
+  currency: string;
+  lead_time: string | null;
+  description: string;
+  undecorated: boolean;
+  price_breaks: AppaPriceBreak[];
+  supplier_notes?: AppaSupplierNotes;
+  price_on_application?: boolean;
+  promodata_decoration?: string;
+  details?: string;
+}
+
+export interface AppaPriceGroup {
+  base_price: AppaBasePrice;
+  additions: AppaAddition[];
+  promodata_decoration?: string;
+}
+
+export interface AppaPriceTags {
+  decorator?: string[];
+  decoration?: string[];
+  website_group?: string[];
+}
+
+export interface AppaPricesPayload {
+  addons: unknown[];
+  price_tags: AppaPriceTags;
+  price_groups: AppaPriceGroup[];
+  price_disclaimer: string | null;
+  currency_options: string;
+}
+
+/** Which addition keys the admin has toggled on for catalogue inclusion. */
+export type AppaAdditionSelections = Record<string, boolean>;
+
+// ── Freight/shipping lines ─────────────────────────────────────────────────────
+
 /** Freight/shipping lines supplied by APPA (read-only in wizard; prototype uses defaults until feed API). */
 export interface AppaFreightFromFeed {
   lineLabel: string;
@@ -102,6 +179,7 @@ export interface ProductFormData {
   subcategory: string;
   source: 'standard' | 'appa' | 'proposal-only' | 'bespoke';
   description: string;
+  productNote: string;
   isNonPublic: boolean;
   isProposalOnly: boolean;
   /** When true, storefront requires tile, hover, and variant images before staying on. */
@@ -134,6 +212,10 @@ export interface ProductFormData {
   freightLeg2: number;  // Decorator → Jolly HQ (always; or Supplier/Decorator → Jolly HQ)
   /** When source === 'appa', shipping is read-only from feed; null for other sources. */
   appaFreight: AppaFreightFromFeed | null;
+  /** Raw APPA price_groups payload imported from the feed. Only set when source === 'appa'. */
+  appaPrices: AppaPricesPayload | null;
+  /** Admin selection of which APPA additions to include in the catalogue listing. */
+  appaAdditionSelections: AppaAdditionSelections;
   // MOQ availability & below-MOQ settings
   moqAvailable: boolean;
   allowBelowMoq: boolean;
@@ -166,6 +248,7 @@ export const INITIAL_FORM_DATA: ProductFormData = {
   subcategory: '',
   source: 'standard',
   description: '',
+  productNote: '',
   isNonPublic: false,
   isProposalOnly: false,
   liveOnWebsite: false,
@@ -178,10 +261,10 @@ export const INITIAL_FORM_DATA: ProductFormData = {
     { id: '2', name: 'Black', sku: 'AS-CT001-BLK', supplierSku: '(auto from APPA)', status: 'active', source: 'appa' },
   ],
   pricingTiers: [
-    { id: '1', minQty: 1, maxQty: 49, unitCost: 6.80 },
-    { id: '2', minQty: 50, maxQty: 99, unitCost: 5.20 },
-    { id: '3', minQty: 100, maxQty: 249, unitCost: 4.20 },
-    { id: '4', minQty: 250, maxQty: null, unitCost: 3.80 },
+    { id: '1', minQty: 1, maxQty: 49, unitCost: 6.80, marginTargetPct: 42, marginFloorPct: 25 },
+    { id: '2', minQty: 50, maxQty: 99, unitCost: 5.20, marginTargetPct: 42, marginFloorPct: 25 },
+    { id: '3', minQty: 100, maxQty: 249, unitCost: 4.20, marginTargetPct: 42, marginFloorPct: 25 },
+    { id: '4', minQty: 250, maxQty: null, unitCost: 3.80, marginTargetPct: 42, marginFloorPct: 25 },
   ],
   marginTarget: 42,
   marginFloor: 25,
@@ -193,6 +276,253 @@ export const INITIAL_FORM_DATA: ProductFormData = {
   freightLeg1: 0.50,
   freightLeg2: 0.30,
   appaFreight: null,
+  appaPrices: {
+    addons: [],
+    price_tags: {
+      decorator: ['NI Printshop'],
+      decoration: ['Print - Rotary One Colour', 'Laser Engrave', 'Print - Rotary Full Colour'],
+      website_group: ['Rotary Digital Print - One Colour', 'Laser Engrave', 'Rotary Digital Print - Full Colour'],
+    },
+    price_groups: [
+      {
+        base_price: {
+          key: 'base-1',
+          type: 'Screen Print',
+          setup: 0,
+          indent: false,
+          currency: 'AUD',
+          lead_time: '2 week',
+          description: '2 week, 512MB, Screen Print, 1 colour/1 position',
+          undecorated: false,
+          price_breaks: [
+            { qty: 50, price: 4.43 },
+            { qty: 100, price: 3.54 },
+            { qty: 250, price: 3.02 },
+            { qty: 500, price: 2.86 },
+            { qty: 1000, price: 2.75 },
+          ],
+        },
+        additions: [
+          {
+            key: 'g1-screen-extra-position',
+            free: false,
+            tags: ['Screen Print'],
+            type: 'Screen Print',
+            setup: 0,
+            currency: 'AUD',
+            lead_time: '2 week',
+            description: 'Additional 1 colour / 1 position Print',
+            undecorated: false,
+            price_breaks: [
+              { qty: 50, price: 0.20 },
+              { qty: 100, price: 0.14 },
+              { qty: 250, price: 0.12 },
+              { qty: 500, price: 0.10 },
+              { qty: 1000, price: 0.08 },
+            ],
+            price_on_application: false,
+            promodata_decoration: 'Direct Print: Screen Print',
+          },
+          {
+            key: 'g1-data-upload-200-500',
+            free: false,
+            tags: ['Addition', 'Data Upload'],
+            type: 'Addition',
+            setup: 0,
+            currency: 'AUD',
+            lead_time: '2 week',
+            description: 'ADD: Data Upload From 200 To 500MB',
+            undecorated: false,
+            price_breaks: [
+              { qty: 50, price: 0.30 },
+              { qty: 100, price: 0.30 },
+              { qty: 250, price: 0.30 },
+              { qty: 500, price: 0.30 },
+              { qty: 1000, price: 0.30 },
+            ],
+            price_on_application: false,
+            promodata_decoration: 'Addition: Data Upload',
+          },
+          {
+            key: 'g1-upgrade-8gb',
+            free: false,
+            tags: ['Addition', 'Upgrade'],
+            type: 'Addition',
+            setup: 0,
+            currency: 'AUD',
+            lead_time: '2 week',
+            description: 'ADD: Upgrade 8GB 3.0 COB',
+            undecorated: false,
+            price_breaks: [
+              { qty: 50, price: 1.60 },
+              { qty: 100, price: 1.60 },
+              { qty: 250, price: 1.60 },
+              { qty: 500, price: 1.60 },
+              { qty: 1000, price: 1.60 },
+            ],
+            price_on_application: false,
+            promodata_decoration: 'Addition: Other',
+          },
+        ],
+        promodata_decoration: 'Direct Print: Screen Print',
+      },
+      {
+        base_price: {
+          key: 'base-2',
+          type: 'Digital UV Print',
+          setup: 0,
+          indent: false,
+          currency: 'AUD',
+          lead_time: '2 week',
+          description: '2 week, 512MB, Digital UV Print, 1 position',
+          undecorated: false,
+          price_breaks: [
+            { qty: 50, price: 4.99 },
+            { qty: 100, price: 3.78 },
+            { qty: 250, price: 3.26 },
+            { qty: 500, price: 3.10 },
+            { qty: 1000, price: 2.99 },
+          ],
+        },
+        additions: [
+          {
+            key: 'g2-uv-extra-position',
+            free: false,
+            tags: ['Digital UV Print'],
+            type: 'Digital UV Print',
+            setup: 0,
+            currency: 'AUD',
+            lead_time: '2 week',
+            description: 'Additional 1 position',
+            undecorated: false,
+            price_breaks: [
+              { qty: 50, price: 0.76 },
+              { qty: 100, price: 0.38 },
+              { qty: 250, price: 0.36 },
+              { qty: 500, price: 0.34 },
+              { qty: 1000, price: 0.32 },
+            ],
+            price_on_application: false,
+            promodata_decoration: 'Direct Print: UV Print',
+          },
+          {
+            key: 'g2-pms-matching',
+            free: false,
+            tags: ['Addition', 'Service'],
+            type: 'Addition',
+            setup: 35,
+            currency: 'AUD',
+            lead_time: '2 week',
+            description: 'ADD: Pms Matching Service',
+            undecorated: false,
+            price_breaks: [],
+            price_on_application: true,
+            promodata_decoration: 'Addition: Other',
+          },
+          {
+            key: 'g2-upgrade-16gb',
+            free: false,
+            tags: ['Addition', 'Upgrade'],
+            type: 'Addition',
+            setup: 0,
+            currency: 'AUD',
+            lead_time: '2 week',
+            description: 'ADD: Upgrade 16GB 3.0 COB',
+            undecorated: false,
+            price_breaks: [
+              { qty: 50, price: 2.15 },
+              { qty: 100, price: 2.15 },
+              { qty: 250, price: 2.15 },
+              { qty: 500, price: 2.15 },
+              { qty: 1000, price: 2.15 },
+            ],
+            price_on_application: false,
+            promodata_decoration: 'Addition: Other',
+          },
+        ],
+        promodata_decoration: 'Direct Print: UV Print',
+      },
+      {
+        base_price: {
+          key: 'base-3',
+          type: 'Screen Print',
+          setup: 0,
+          indent: false,
+          currency: 'AUD',
+          lead_time: '2 week',
+          description: '2 week, 1GB, Screen Print, 1 colour/1 position',
+          undecorated: false,
+          price_breaks: [
+            { qty: 50, price: 5.07 },
+            { qty: 100, price: 4.12 },
+            { qty: 250, price: 3.68 },
+            { qty: 500, price: 3.48 },
+            { qty: 1000, price: 3.35 },
+          ],
+        },
+        additions: [
+          {
+            key: 'g3-screen-extra-position',
+            free: false,
+            tags: ['Screen Print'],
+            type: 'Screen Print',
+            setup: 0,
+            currency: 'AUD',
+            lead_time: '2 week',
+            description: 'Additional 1 colour / 1 position Print',
+            undecorated: false,
+            price_breaks: [
+              { qty: 50, price: 0.20 },
+              { qty: 100, price: 0.14 },
+              { qty: 250, price: 0.12 },
+              { qty: 500, price: 0.10 },
+              { qty: 1000, price: 0.08 },
+            ],
+            price_on_application: false,
+            promodata_decoration: 'Direct Print: Screen Print',
+          },
+          {
+            key: 'g3-data-protection',
+            free: false,
+            tags: ['Addition', 'Service'],
+            type: 'Addition',
+            setup: 0,
+            currency: 'AUD',
+            lead_time: '2 week',
+            description: 'ADD: Data Protection',
+            undecorated: false,
+            price_breaks: [],
+            price_on_application: true,
+            promodata_decoration: 'Addition: Personalisation',
+          },
+          {
+            key: 'g3-upgrade-32gb',
+            free: false,
+            tags: ['Addition', 'Upgrade'],
+            type: 'Addition',
+            setup: 0,
+            currency: 'AUD',
+            lead_time: '2 week',
+            description: 'ADD: Upgrade 32GB 3.0 COB',
+            undecorated: false,
+            price_breaks: [
+              { qty: 50, price: 2.54 },
+              { qty: 100, price: 2.54 },
+              { qty: 250, price: 2.54 },
+              { qty: 500, price: 2.54 },
+              { qty: 1000, price: 2.54 },
+            ],
+            price_on_application: false,
+            promodata_decoration: 'Addition: Other',
+          },
+        ],
+        promodata_decoration: 'Direct Print: Screen Print',
+      },
+    ],
+    price_disclaimer: null,
+    currency_options: 'AUD',
+  },
+  appaAdditionSelections: {},
   moqAvailable: true,
   allowBelowMoq: false,
   belowMoqSurchargeType: 'none',

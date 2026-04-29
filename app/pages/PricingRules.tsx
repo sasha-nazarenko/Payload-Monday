@@ -304,7 +304,7 @@ function AtRiskBadge({ count, severity }: { count: number; severity: 'none' | 'a
 // --- Main Component ---
 
 export function PricingRules() {
-  const { currentRole, setCurrentRole } = useRole();
+  const { currentRole } = useRole();
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [auditPage, setAuditPage] = useState(1);
 
@@ -326,7 +326,7 @@ export function PricingRules() {
         fontFamily: 'Inter, system-ui, sans-serif',
       }}
     >
-      <LeftSidebar currentRole={currentRole} onRoleChange={setCurrentRole} />
+      <LeftSidebar currentRole={currentRole} />
 
       <div className="flex-1 overflow-auto">
         {/* Top Bar */}

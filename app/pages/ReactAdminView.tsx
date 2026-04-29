@@ -88,17 +88,17 @@ function buildDataProvider(): DataProvider {
 
 const raTheme = createTheme({
   palette: {
-    primary: { main: '#1F5C9E' },
-    secondary: { main: '#B8D4EE' },
+    primary: { main: '#111827' },
+    secondary: { main: '#e5e7eb' },
     background: {
-      default: '#F5F7FA',
-      paper: '#FFFFFF',
+      default: '#f7f7f8',
+      paper: '#ffffff',
     },
     text: {
-      primary: '#1A1A1A',
-      secondary: '#555555',
+      primary: '#111827',
+      secondary: '#4b5563',
     },
-    divider: '#DCDFE6',
+    divider: '#e5e7eb',
   },
   shape: { borderRadius: 10 },
   typography: {
@@ -108,7 +108,7 @@ const raTheme = createTheme({
     MuiPaper: {
       styleOverrides: {
         root: {
-          border: '1px solid #DCDFE6',
+          border: '1px solid #e5e7eb',
           boxShadow: '0 1px 2px rgba(16, 24, 40, 0.04)',
         },
       },
@@ -152,14 +152,14 @@ const BrandAppBar = () => (
   <AppBar
     sx={{
       '& .RaAppBar-toolbar': {
-        backgroundColor: '#FFFFFF',
-        borderBottom: '1px solid #DCDFE6',
-        color: '#1A1A1A',
+        backgroundColor: '#ffffff',
+        borderBottom: '1px solid #e5e7eb',
+        color: '#111827',
       },
     }}
   >
     <TitlePortal />
-    <Typography variant="subtitle1" fontWeight={700} color="#1F5C9E">
+    <Typography variant="subtitle1" fontWeight={700} color="#111827">
       Jolly Catalogue Admin
     </Typography>
   </AppBar>
@@ -168,9 +168,9 @@ const BrandAppBar = () => (
 const BrandMenu = () => (
   <Menu
     sx={{
-      '& .RaMenu-open': { backgroundColor: '#EBF3FB' },
+      '& .RaMenu-open': { backgroundColor: '#f3f4f6' },
       '& .RaMenuItemLink-active': {
-        borderRight: '3px solid #1F5C9E',
+        borderRight: '3px solid #111827',
       },
     }}
   >
@@ -185,13 +185,13 @@ const BrandLayout = (props: ComponentProps<typeof Layout>) => (
     appBar={BrandAppBar}
     menu={BrandMenu}
     sx={{
-      '& .RaLayout-contentWithSidebar': { backgroundColor: '#F5F7FA' },
+      '& .RaLayout-contentWithSidebar': { backgroundColor: '#f7f7f8' },
       '& .RaLayout-sidebar': {
         width: 240,
         '& .RaSidebar-fixed': {
           width: 240,
-          borderRight: '1px solid #DCDFE6',
-          backgroundColor: '#FFFFFF',
+          borderRight: '1px solid #e5e7eb',
+          backgroundColor: '#ffffff',
         },
       },
     }}

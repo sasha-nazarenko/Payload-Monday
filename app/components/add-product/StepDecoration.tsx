@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Plus, X, Star, GripVertical, AlertTriangle, ChevronDown, ChevronUp,
-  Link2, CheckCircle2, Database, Pencil, Info, Wand2, ExternalLink,
+  Link2, CheckCircle2, Database, Pencil, Info, Wand2, ExternalLink, HelpCircle,
 } from 'lucide-react';
 import {
   ProductFormData, DecorationMethod, DECORATION_METHODS_LIST, DECORATORS,
@@ -143,6 +143,41 @@ export function StepDecoration({ formData, onUpdate, errors }: StepDecorationPro
   };
 
   const { supplierIsDecorator, supplier } = formData;
+
+  const Tooltip = ({ children, text }: { children: React.ReactNode; text: string }) => {
+    const [showTip, setShowTip] = useState(false);
+    return (
+      <div
+        style={{ position: 'relative', display: 'inline-block' }}
+        onMouseEnter={() => setShowTip(true)}
+        onMouseLeave={() => setShowTip(false)}
+      >
+        {children}
+        {showTip && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '100%',
+              left: '0',
+              marginBottom: '8px',
+              backgroundColor: 'var(--jolly-text-body)',
+              color: 'white',
+              padding: '8px 12px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              lineHeight: '1.4',
+              maxWidth: '240px',
+              whiteSpace: 'normal',
+              zIndex: 1000,
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.15)',
+            }}
+          >
+            {text}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -308,8 +343,11 @@ export function StepDecoration({ formData, onUpdate, errors }: StepDecorationPro
             <div className="grid grid-cols-2 gap-5">
               {/* Decoration Method */}
               <div>
-                <label className="block mb-2" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
+                <label className="flex items-center gap-2 mb-2" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
                   Decoration Method <span style={{ color: 'var(--jolly-destructive)' }}>*</span>
+                  <Tooltip text="Pick the primary decoration type that should drive rate-card lookup and default pricing in the next step.">
+                    <HelpCircle size={14} style={{ cursor: 'pointer', color: 'var(--jolly-text-secondary)' }} />
+                  </Tooltip>
                 </label>
                 <select
                   value={primaryDecorationMethod}
@@ -336,8 +374,11 @@ export function StepDecoration({ formData, onUpdate, errors }: StepDecorationPro
 
               {/* Decorator Supplier */}
               <div>
-                <label className="block mb-2" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
+                <label className="flex items-center gap-2 mb-2" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
                   Decorator Supplier <span style={{ color: 'var(--jolly-destructive)' }}>*</span>
+                  <Tooltip text="Choose the supplier/decorator that will actually produce this method. If a matrix rate card exists, pricing can auto-fill.">
+                    <HelpCircle size={14} style={{ cursor: 'pointer', color: 'var(--jolly-text-secondary)' }} />
+                  </Tooltip>
                 </label>
                 <select
                   value={primaryDecoratorSupplier}
@@ -654,8 +695,11 @@ export function StepDecoration({ formData, onUpdate, errors }: StepDecorationPro
                       {/* Method + Decorator selects */}
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block mb-2" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
+                          <label className="flex items-center gap-2 mb-2" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
                             Decoration Method <span style={{ color: 'var(--jolly-destructive)' }}>*</span>
+                            <Tooltip text="Select the exact method variant for this detail card. This is useful when a product supports multiple decoration methods.">
+                              <HelpCircle size={14} style={{ cursor: 'pointer', color: 'var(--jolly-text-secondary)' }} />
+                            </Tooltip>
                           </label>
                           <select
                             value={method.method}
@@ -669,8 +713,11 @@ export function StepDecoration({ formData, onUpdate, errors }: StepDecorationPro
                           </select>
                         </div>
                         <div>
-                          <label className="block mb-2" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
+                          <label className="flex items-center gap-2 mb-2" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
                             Decorator / Supplier <span style={{ color: 'var(--jolly-destructive)' }}>*</span>
+                            <Tooltip text="Assign the partner responsible for this decoration method. This should usually match the supplier used for production pricing.">
+                              <HelpCircle size={14} style={{ cursor: 'pointer', color: 'var(--jolly-text-secondary)' }} />
+                            </Tooltip>
                           </label>
                           <select
                             value={method.decorator}
@@ -688,7 +735,12 @@ export function StepDecoration({ formData, onUpdate, errors }: StepDecorationPro
 
                       {/* Print area */}
                       <div>
-                        <h4 className="mb-3" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>Print Area Dimensions</h4>
+                        <div className="flex items-center gap-2 mb-3">
+                          <h4 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>Print Area Dimensions</h4>
+                          <Tooltip text="Use the maximum printable area approved by the decorator. These dimensions guide artwork setup and production expectations.">
+                            <HelpCircle size={14} style={{ cursor: 'pointer', color: 'var(--jolly-text-secondary)' }} />
+                          </Tooltip>
+                        </div>
                         <div className="grid grid-cols-2 gap-4">
                           {[
                             { label: 'Width (mm)', field: 'printAreaWidth' },
@@ -711,7 +763,12 @@ export function StepDecoration({ formData, onUpdate, errors }: StepDecorationPro
                       {/* Colours & costs */}
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block mb-2" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>Max Colours</label>
+                          <label className="flex items-center gap-2 mb-2" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
+                            Max Colours
+                            <Tooltip text="Enter the maximum colour count supported for this method and print area before extra charges or method changes are required.">
+                              <HelpCircle size={14} style={{ cursor: 'pointer', color: 'var(--jolly-text-secondary)' }} />
+                            </Tooltip>
+                          </label>
                           <input type="number" value={method.maxColors || ''} onChange={(e) => handleMethodUpdate(method.id, { maxColors: parseInt(e.target.value) || 0 })} placeholder="e.g. 4" className="w-full px-4 py-2" style={inputStyle} />
                         </div>
                         <div>
@@ -731,7 +788,12 @@ export function StepDecoration({ formData, onUpdate, errors }: StepDecorationPro
 
                       {/* Notes */}
                       <div>
-                        <label className="block mb-2" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>Notes</label>
+                        <label className="flex items-center gap-2 mb-2" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
+                          Notes
+                          <Tooltip text="Capture production or artwork instructions that the design team or decorator should know for this method.">
+                            <HelpCircle size={14} style={{ cursor: 'pointer', color: 'var(--jolly-text-secondary)' }} />
+                          </Tooltip>
+                        </label>
                         <textarea
                           value={method.notes}
                           onChange={(e) => handleMethodUpdate(method.id, { notes: e.target.value })}

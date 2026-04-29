@@ -2,6 +2,7 @@ import { Search, X } from 'lucide-react';
 import { useFilters } from '../context/FilterContext';
 import { useNavigate } from 'react-router';
 import { useRole } from '../context/RoleContext';
+import { PayloadUIButton } from './ui/payload-button';
 
 interface TopBarProps {
   productCount: number;
@@ -102,27 +103,14 @@ export function TopBar({ productCount }: TopBarProps) {
           </div>
 
           {/* Add Custom Product Button */}
-          <button 
-            className="px-4 rounded border whitespace-nowrap transition-colors"
-            style={{
-              borderColor: 'var(--jolly-primary)',
-              color: 'var(--jolly-primary)',
-              backgroundColor: 'white',
-              fontSize: '14px',
-              fontWeight: 600,
-              height: '36px',
-              borderRadius: '6px'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--jolly-surface)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'white';
-            }}
+          <PayloadUIButton
+            buttonStyle="secondary"
+            size="small"
             onClick={() => navigate('/products/new')}
+            className="whitespace-nowrap"
           >
             Add Custom Product
-          </button>
+          </PayloadUIButton>
         </div>
       </div>
 

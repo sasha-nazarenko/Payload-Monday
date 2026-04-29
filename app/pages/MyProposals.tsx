@@ -3,7 +3,7 @@ import { LeftSidebar } from '../components/LeftSidebar';
 import { useRole } from '../context/RoleContext';
 import { Link } from 'react-router';
 import { useNavigate } from 'react-router';
-import { Button } from '@payloadcms/ui';
+import { PayloadUIButton as Button } from '../components/ui/payload-button';
 import {
   Plus,
   Search,
@@ -308,7 +308,7 @@ function StatusBadge({ status }: { status: ProposalStatus }) {
 // --- Main Component ---
 
 export function MyProposals() {
-  const { currentRole, setCurrentRole } = useRole();
+  const { currentRole } = useRole();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -368,7 +368,7 @@ export function MyProposals() {
       className="flex h-screen payload-sales-root payload-project-screen projects-list-screen"
       style={{ backgroundColor: 'var(--jolly-bg)', fontFamily: 'Inter, system-ui, sans-serif' }}
     >
-      <LeftSidebar currentRole={currentRole} onRoleChange={setCurrentRole} />
+      <LeftSidebar currentRole={currentRole} />
 
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden projects-list-main">
         {/* TOP BAR */}

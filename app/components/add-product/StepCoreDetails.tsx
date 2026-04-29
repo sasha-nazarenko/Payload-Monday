@@ -6,9 +6,17 @@ interface StepCoreDetailsProps {
   formData: ProductFormData;
   onUpdate: (updates: Partial<ProductFormData>) => void;
   errors: Record<string, string>;
+  onChangeType?: () => void;
 }
 
-export function StepCoreDetails({ formData, onUpdate, errors }: StepCoreDetailsProps) {
+const TYPE_LABELS: Record<ProductFormData['source'], string> = {
+  'standard': 'Standard Product',
+  'appa': 'APPA Product',
+  'proposal-only': 'Proposal Only',
+  'bespoke': 'Bespoke Product',
+};
+
+export function StepCoreDetails({ formData, onUpdate, errors, onChangeType }: StepCoreDetailsProps) {
   const [appaLoading, setAppaLoading] = useState(false);
   const [appaFilled, setAppaFilled] = useState(false);
 
@@ -56,77 +64,126 @@ export function StepCoreDetails({ formData, onUpdate, errors }: StepCoreDetailsP
     </span>
   );
 
-  return (
-    <div className="space-y-6">
-      {/* APPA Lookup Banner */}
+  const Tooltip = ({ children, text }: { children: React.ReactNode; text: string }) => {
+    const [showTip, setShowTip] = useState(false);
+    return (
       <div
-        className="flex items-center justify-between p-4 rounded"
-        style={{
-          backgroundColor: 'var(--jolly-surface)',
-          borderRadius: '6px',
-          border: '1px solid var(--jolly-accent)',
-        }}
+        style={{ position: 'relative', display: 'inline-block' }}
+        onMouseEnter={() => setShowTip(true)}
+        onMouseLeave={() => setShowTip(false)}
       >
-        <div className="flex items-start gap-3">
-          <Sparkles size={20} style={{ color: 'var(--jolly-primary)', marginTop: '2px', flexShrink: 0 }} />
+        {children}
+        {showTip && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '100%',
+              left: '0',
+              marginBottom: '8px',
+              backgroundColor: 'var(--jolly-text-body)',
+              color: 'white',
+              padding: '8px 12px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              lineHeight: '1.4',
+              maxWidth: '220px',
+              whiteSpace: 'normal',
+              zIndex: 1000,
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.15)',
+            }}
+          >
+            {text}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* APPA Lookup Banner */}
+      {formData.source === 'appa' && (
+        <div
+          className="flex items-center justify-between p-4 rounded border-2"
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--jolly-primary) 6%, var(--jolly-card))',
+            borderColor: 'var(--jolly-primary)',
+            borderRadius: '8px',
+          }}
+        >
+          <div className="flex items-start gap-3 flex-1">
+            <Sparkles size={22} style={{ color: 'var(--jolly-primary)', marginTop: '0px', flexShrink: 0 }} />
+            <div>
+              <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--jolly-text-body)' }}>
+                🔍 Lookup from APPA
+              </p>
+              <p style={{ fontSize: '13px', color: 'var(--jolly-text-secondary)', marginTop: '2px' }}>
+                Enter supplier and SKU, then lookup to auto-populate product details, variants, and pricing from the APPA feed.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleAppaLookup}
+            disabled={!formData.supplier || !formData.supplierSku || appaLoading}
+            className="flex items-center gap-2 px-5 py-2 rounded whitespace-nowrap flex-shrink-0"
+            style={{
+              backgroundColor: formData.supplier && formData.supplierSku && !appaLoading ? 'var(--jolly-primary)' : 'var(--jolly-bg)',
+              color: formData.supplier && formData.supplierSku && !appaLoading ? 'white' : 'var(--jolly-text-disabled)',
+              fontSize: '14px',
+              fontWeight: 600,
+              height: '40px',
+              border: 'none',
+              cursor: formData.supplier && formData.supplierSku && !appaLoading ? 'pointer' : 'not-allowed',
+            }}
+          >
+            {appaLoading ? <Loader2 size={16} className="animate-spin" /> : null}
+            {appaLoading ? 'Looking up…' : 'Lookup'}
+          </button>
+        </div>
+      )}
+
+      {formData.source !== 'appa' && !appaFilled && (
+        <div
+          className="flex items-center gap-3 p-4 rounded"
+          style={{
+            backgroundColor: 'var(--jolly-surface)',
+            borderRadius: '6px',
+            border: '1px solid var(--jolly-accent)',
+          }}
+        >
+          <Sparkles size={18} style={{ color: 'var(--jolly-primary)', flexShrink: 0 }} />
           <div>
             <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
               APPA Auto-Fill Available
             </p>
-            <p style={{ fontSize: '13px', color: 'var(--jolly-text-secondary)', marginTop: '2px' }}>
+            <p style={{ fontSize: '13px', color: 'var(--jolly-text-secondary)', marginTop: '1px' }}>
               Select a supplier and enter a supplier SKU, then click &quot;Lookup&quot; to auto-fill product details from APPA.
             </p>
           </div>
         </div>
-        <button
-          onClick={handleAppaLookup}
-          disabled={!formData.supplier || !formData.supplierSku || appaLoading}
-          className="flex items-center gap-2 px-4 py-2 rounded whitespace-nowrap"
-          style={{
-            backgroundColor: formData.supplier && formData.supplierSku && !appaLoading ? 'var(--jolly-primary)' : 'var(--jolly-bg)',
-            color: formData.supplier && formData.supplierSku && !appaLoading ? 'white' : 'var(--jolly-text-disabled)',
-            fontSize: '14px',
-            fontWeight: 600,
-            height: '36px',
-            border: 'none',
-            cursor: formData.supplier && formData.supplierSku && !appaLoading ? 'pointer' : 'not-allowed',
-          }}
-        >
-          {appaLoading ? <Loader2 size={16} className="animate-spin" /> : null}
-          {appaLoading ? 'Looking up…' : 'Lookup'}
-        </button>
-      </div>
+      )}
 
       {appaFilled && (
         <div
           className="flex items-center gap-2 p-3 rounded"
-          style={{
-            backgroundColor: '#E8F5E9',
-            borderRadius: '6px',
-            fontSize: '14px',
-            color: 'var(--jolly-success)',
-          }}
+          style={{ backgroundColor: '#E8F5E9', borderRadius: '6px', fontSize: '14px', color: 'var(--jolly-success)' }}
         >
           <Info size={16} />
           APPA pre-fill complete. Fields marked with the APPA chip were auto-populated. Review and adjust as needed.
         </div>
       )}
 
-      {/* Product Identity Section */}
+      {/* Single flat form card */}
       <div
         className="rounded"
         style={{
           backgroundColor: 'var(--jolly-card)',
-          borderRadius: '6px',
+          borderRadius: '8px',
           boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05)',
         }}
       >
-        <div className="p-6 border-b" style={{ borderColor: 'var(--jolly-border)' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
-            Product Identity
-          </h2>
-        </div>
         <div className="p-6 space-y-5">
+
           {/* Product Name */}
           <div>
             <label className="flex items-center gap-2 mb-2" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
@@ -146,7 +203,7 @@ export function StepCoreDetails({ formData, onUpdate, errors }: StepCoreDetailsP
             )}
           </div>
 
-          {/* Supplier & SKU Row */}
+          {/* Supplier & Supplier SKU */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block mb-2" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
@@ -201,24 +258,7 @@ export function StepCoreDetails({ formData, onUpdate, errors }: StepCoreDetailsP
               <p style={{ fontSize: '12px', color: 'var(--jolly-destructive)', marginTop: '4px' }}>{errors.internalSku}</p>
             )}
           </div>
-        </div>
-      </div>
 
-      {/* Classification Section */}
-      <div
-        className="rounded"
-        style={{
-          backgroundColor: 'var(--jolly-card)',
-          borderRadius: '6px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05)',
-        }}
-      >
-        <div className="p-6 border-b" style={{ borderColor: 'var(--jolly-border)' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
-            Classification
-          </h2>
-        </div>
-        <div className="p-6 space-y-5">
           {/* Category & Subcategory */}
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -262,135 +302,56 @@ export function StepCoreDetails({ formData, onUpdate, errors }: StepCoreDetailsP
 
           {/* Product Type */}
           <div>
-            <label className="block mb-2" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
-              Product Type <span style={{ color: 'var(--jolly-destructive)' }}>*</span>
+            <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)', marginBottom: '8px', display: 'block' }}>
+              Product Type
             </label>
-            <div className="flex gap-3">
-              {[
-                { value: 'standard', label: 'Standard', desc: 'Uses standard decoration workflow' },
-                { value: 'bespoke', label: 'Bespoke', desc: 'Custom add-ons, manual pricing logic' },
-                { value: 'appa', label: 'APPA', desc: 'APPA-linked standard product' },
-                { value: 'proposal-only', label: 'Proposal Only', desc: 'Minimum viable data, non-storefront' },
-              ].map(option => (
+            <div className="flex items-center gap-3">
+              <span
+                style={{
+                  display: 'inline-block',
+                  padding: '8px 14px',
+                  backgroundColor: 'var(--jolly-surface)',
+                  border: '1px solid var(--jolly-border)',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  color: 'var(--jolly-text-body)',
+                }}
+              >
+                {TYPE_LABELS[formData.source]}
+              </span>
+              {onChangeType && (
                 <button
-                  key={option.value}
-                  onClick={() => {
-                    const value = option.value as ProductFormData['source'];
-                    const updates: Partial<ProductFormData> = { source: value };
-                    updates.isProposalOnly = value === 'proposal-only';
-                    updates.appaFreight = value === 'appa' ? DEFAULT_APPA_FREIGHT : null;
-                    onUpdate(updates);
-                  }}
-                  className="flex-1 p-3 rounded text-left"
+                  onClick={onChangeType}
                   style={{
-                    border: `2px solid ${formData.source === option.value ? 'var(--jolly-primary)' : 'var(--jolly-border)'}`,
-                    backgroundColor: formData.source === option.value ? 'var(--jolly-surface)' : 'white',
+                    padding: '6px 12px',
+                    backgroundColor: 'transparent',
+                    border: '1px solid var(--jolly-primary)',
+                    color: 'var(--jolly-primary)',
+                    fontSize: '13px',
+                    fontWeight: 600,
                     borderRadius: '6px',
                     cursor: 'pointer',
                   }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--jolly-primary) 8%, transparent)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                 >
-                  <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>{option.label}</p>
-                  <p style={{ fontSize: '12px', color: 'var(--jolly-text-secondary)', marginTop: '2px' }}>{option.desc}</p>
+                  Change type
                 </button>
-              ))}
+              )}
             </div>
+            {formData.source === 'proposal-only' && (
+              <div
+                className="flex items-start gap-2 p-3 rounded mt-3"
+                style={{ backgroundColor: 'var(--jolly-warning-bg)', borderRadius: '6px', fontSize: '13px', color: 'var(--jolly-warning)' }}
+              >
+                <Info size={14} style={{ marginTop: '2px', flexShrink: 0 }} />
+                <span>Proposal-only products are excluded from storefront publishing and catalogue browsing.</span>
+              </div>
+            )}
           </div>
 
-          {/* Proposal-only info banner */}
-          {formData.source === 'proposal-only' && (
-            <div
-              className="flex items-start gap-2 p-3 rounded"
-              style={{
-                backgroundColor: 'var(--jolly-warning-bg)',
-                borderRadius: '6px',
-                fontSize: '14px',
-                color: 'var(--jolly-warning)',
-              }}
-            >
-              <Info size={16} style={{ marginTop: '2px', flexShrink: 0 }} />
-              <span>Proposal-only products are excluded from storefront publishing and catalogue browsing.</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Visibility & Description */}
-      <div
-        className="rounded"
-        style={{
-          backgroundColor: 'var(--jolly-card)',
-          borderRadius: '6px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05)',
-        }}
-      >
-        <div className="p-6 border-b" style={{ borderColor: 'var(--jolly-border)' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
-            Visibility & Description
-          </h2>
-        </div>
-        <div className="p-6 space-y-5">
-          {/* Toggles */}
-          <div className="flex gap-6">
-            <label className="flex items-center gap-3 cursor-pointer">
-              <div
-                onClick={() => onUpdate({ isNonPublic: !formData.isNonPublic })}
-                className="relative inline-flex items-center rounded-full cursor-pointer transition-colors"
-                style={{
-                  width: '44px',
-                  height: '24px',
-                  backgroundColor: formData.isNonPublic ? 'var(--jolly-primary)' : 'var(--jolly-border)',
-                }}
-              >
-                <div
-                  className="absolute rounded-full bg-white transition-transform"
-                  style={{
-                    width: '20px',
-                    height: '20px',
-                    transform: formData.isNonPublic ? 'translateX(22px)' : 'translateX(2px)',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                  }}
-                />
-              </div>
-              <div>
-                <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>Non-public</span>
-                <p style={{ fontSize: '12px', color: 'var(--jolly-text-secondary)' }}>Hide from public website CMS feed</p>
-              </div>
-            </label>
-
-            <label className="flex items-center gap-3 cursor-pointer">
-              <div
-                onClick={() => {
-                  if (formData.source !== 'proposal-only') {
-                    onUpdate({ isProposalOnly: !formData.isProposalOnly });
-                  }
-                }}
-                className="relative inline-flex items-center rounded-full transition-colors"
-                style={{
-                  width: '44px',
-                  height: '24px',
-                  backgroundColor: formData.isProposalOnly ? 'var(--jolly-primary)' : 'var(--jolly-border)',
-                  cursor: formData.source === 'proposal-only' ? 'not-allowed' : 'pointer',
-                  opacity: formData.source === 'proposal-only' ? 0.6 : 1,
-                }}
-              >
-                <div
-                  className="absolute rounded-full bg-white transition-transform"
-                  style={{
-                    width: '20px',
-                    height: '20px',
-                    transform: formData.isProposalOnly ? 'translateX(22px)' : 'translateX(2px)',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                  }}
-                />
-              </div>
-              <div>
-                <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>Proposal-Only</span>
-                <p style={{ fontSize: '12px', color: 'var(--jolly-text-secondary)' }}>
-                  {formData.source === 'proposal-only' ? 'Locked ON for Proposal-only products' : 'Only available for specific proposals'}
-                </p>
-              </div>
-            </label>
-          </div>
+          <div style={{ borderTop: '1px solid var(--jolly-border)' }} />
 
           {/* Description */}
           <div>
@@ -422,6 +383,48 @@ export function StepCoreDetails({ formData, onUpdate, errors }: StepCoreDetailsP
               </span>
             </div>
           </div>
+
+          {/* Product Note (optional) */}
+          <div>
+            <label className="flex items-center gap-2 mb-1" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
+              Product Note
+              <span style={{ fontSize: '12px', fontWeight: 400, color: 'var(--jolly-text-secondary)' }}>optional</span>
+            </label>
+            <p style={{ fontSize: '12px', color: 'var(--jolly-text-secondary)', marginBottom: '8px' }}>
+              Internal note for sales reps — not shown to clients or on the public website.
+            </p>
+            <textarea
+              value={formData.productNote}
+              onChange={(e) => onUpdate({ productNote: e.target.value })}
+              placeholder="e.g. Preferred for conference packs; check stock levels before quoting large runs"
+              rows={3}
+              className="w-full px-4 py-3"
+              style={{
+                border: '1px solid var(--jolly-border)',
+                fontSize: '14px',
+                borderRadius: '6px',
+                resize: 'vertical',
+              }}
+            />
+          </div>
+
+          {/* Bespoke decoration field */}
+          {formData.source === 'bespoke' && (
+            <div>
+              <label className="flex items-center gap-2 mb-2" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
+                Bespoke Decoration Details
+              </label>
+              <textarea
+                value={formData.bespokeDecorationDescription}
+                onChange={(e) => onUpdate({ bespokeDecorationDescription: e.target.value })}
+                placeholder="Describe the custom decoration specifications, materials, and any special requirements for this bespoke product"
+                rows={3}
+                className="w-full px-4 py-3"
+                style={{ border: '1px solid var(--jolly-border)', fontSize: '14px', borderRadius: '6px', resize: 'vertical' }}
+              />
+            </div>
+          )}
+
         </div>
       </div>
     </div>

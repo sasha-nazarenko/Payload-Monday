@@ -1,12 +1,28 @@
 import { useState } from 'react';
 import { Check, AlertTriangle, X as XIcon, ChevronDown, ChevronUp, Edit, Package, Tag, Printer, Image } from 'lucide-react';
-import { ProductFormData, DEFAULT_APPA_FREIGHT, websiteStorefrontPackComplete, isProposalOnlyProduct } from './types';
+import {
+  ProductFormData,
+  DEFAULT_APPA_FREIGHT,
+  websiteStorefrontPackComplete,
+  isProposalOnlyProduct,
+  SUPPLIERS,
+  CATEGORIES,
+  SUBCATEGORIES,
+  PRIMARY_DECORATION_METHODS,
+} from './types';
 
 interface StepReviewProps {
   formData: ProductFormData;
+  onUpdate: (updates: Partial<ProductFormData>) => void;
   onNavigateToStep: (step: number) => void;
   onActivate: () => void;
   validationReport: ValidationReport;
+  flowSteps: FlowStep[];
+}
+
+interface FlowStep {
+  id: 'core' | 'decoration' | 'pricing' | 'assets' | 'review';
+  label: string;
 }
 
 interface ValidationItem {
@@ -23,117 +39,127 @@ export interface ValidationReport {
   totalComplete: number;
 }
 
-export function getValidationReport(formData: ProductFormData): ValidationReport {
+export function getValidationReport(formData: ProductFormData, flowSteps: FlowStep[]): ValidationReport {
   const items: ValidationItem[] = [];
+  const getStepNumber = (id: FlowStep['id']) => flowSteps.findIndex((step) => step.id === id) + 1;
+  const coreStep = getStepNumber('core');
+  const decorationStep = getStepNumber('decoration');
+  const pricingStep = getStepNumber('pricing');
+  const assetsStep = getStepNumber('assets');
 
   // Step 1 validations
-  if (formData.productName) {
-    items.push({ field: 'Product Name', step: 1, status: 'pass', message: 'Provided' });
-  } else {
-    items.push({ field: 'Product Name', step: 1, status: 'error', message: 'Required — missing' });
-  }
+  if (coreStep) {
+    if (formData.productName) {
+      items.push({ field: 'Product Name', step: coreStep, status: 'pass', message: 'Provided' });
+    } else {
+      items.push({ field: 'Product Name', step: coreStep, status: 'error', message: 'Required — missing' });
+    }
 
-  if (formData.supplier) {
-    items.push({ field: 'Supplier', step: 1, status: 'pass', message: 'Provided' });
-  } else {
-    items.push({ field: 'Supplier', step: 1, status: 'error', message: 'Required — missing' });
-  }
+    if (formData.supplier) {
+      items.push({ field: 'Supplier', step: coreStep, status: 'pass', message: 'Provided' });
+    } else {
+      items.push({ field: 'Supplier', step: coreStep, status: 'error', message: 'Required — missing' });
+    }
 
-  if (formData.supplierSku) {
-    items.push({ field: 'Supplier SKU', step: 1, status: 'pass', message: 'Provided' });
-  } else {
-    items.push({ field: 'Supplier SKU', step: 1, status: 'error', message: 'Required — missing' });
-  }
+    if (formData.supplierSku) {
+      items.push({ field: 'Supplier SKU', step: coreStep, status: 'pass', message: 'Provided' });
+    } else {
+      items.push({ field: 'Supplier SKU', step: coreStep, status: 'error', message: 'Required — missing' });
+    }
 
-  if (formData.internalSku) {
-    items.push({ field: 'Internal SKU', step: 1, status: 'pass', message: 'Provided' });
-  } else {
-    items.push({ field: 'Internal SKU', step: 1, status: 'error', message: 'Required — missing' });
-  }
+    if (formData.internalSku) {
+      items.push({ field: 'Internal SKU', step: coreStep, status: 'pass', message: 'Provided' });
+    } else {
+      items.push({ field: 'Internal SKU', step: coreStep, status: 'error', message: 'Required — missing' });
+    }
 
-  if (formData.category) {
-    items.push({ field: 'Category', step: 1, status: 'pass', message: formData.category });
-  } else {
-    items.push({ field: 'Category', step: 1, status: 'error', message: 'Required — missing' });
-  }
+    if (formData.category) {
+      items.push({ field: 'Category', step: coreStep, status: 'pass', message: formData.category });
+    } else {
+      items.push({ field: 'Category', step: coreStep, status: 'error', message: 'Required — missing' });
+    }
 
-  if (formData.description) {
-    items.push({ field: 'Description', step: 1, status: 'pass', message: `${formData.description.length} chars` });
-  } else {
-    items.push({ field: 'Description', step: 1, status: 'error', message: 'Required — missing' });
-  }
-
-  // Step 2 — Decoration (was Step 3)
-  if (formData.primaryDecorationMethod && formData.primaryDecoratorSupplier) {
-    items.push({ field: 'Primary Decoration', step: 2, status: 'pass', message: `${formData.primaryDecorationMethod} via ${formData.primaryDecoratorSupplier}` });
-  } else if (formData.primaryDecorationMethod || formData.primaryDecoratorSupplier) {
-    items.push({ field: 'Primary Decoration', step: 2, status: 'warning', message: 'Method or supplier not fully selected' });
-  } else {
-    items.push({ field: 'Primary Decoration', step: 2, status: 'warning', message: 'No decoration selected — recommended for activation' });
-  }
-
-  if (formData.decorationMethods.length > 0) {
-    const preferred = formData.decorationMethods.find(d => d.preferred);
-    items.push({ field: 'Decoration Detail', step: 2, status: 'pass', message: `${formData.decorationMethods.length} method(s) — Preferred: ${preferred?.method || 'None'}` });
-    const methodsWithoutDecorator = formData.decorationMethods.filter(d => !d.decorator);
-    if (methodsWithoutDecorator.length > 0) {
-      items.push({ field: 'Decorator Assignment', step: 2, status: 'warning', message: `${methodsWithoutDecorator.length} method(s) missing decorator` });
+    if (formData.description) {
+      items.push({ field: 'Description', step: coreStep, status: 'pass', message: `${formData.description.length} chars` });
+    } else {
+      items.push({ field: 'Description', step: coreStep, status: 'error', message: 'Required — missing' });
     }
   }
 
-  // Step 3 — Pricing & Tiers (was Step 2)
-  if (formData.variants.length > 0) {
-    items.push({ field: 'Variants', step: 3, status: 'pass', message: `${formData.variants.length} variant(s)` });
-  } else {
-    items.push({ field: 'Variants', step: 3, status: 'error', message: 'At least one variant required' });
-  }
-
-  if (formData.pricingTiers.length > 0 && formData.pricingTiers.some(t => t.unitCost > 0)) {
-    const decoratorRows = formData.pricingTiers.filter(t => t.source === 'decorator').length;
-    const tierMsg = decoratorRows > 0
-      ? `${formData.pricingTiers.length} tier(s) — ${decoratorRows} from rate card`
-      : `${formData.pricingTiers.length} tier(s)`;
-    items.push({ field: 'Pricing Tiers', step: 3, status: 'pass', message: tierMsg });
-  } else {
-    items.push({ field: 'Pricing Tiers', step: 3, status: 'error', message: 'At least one tier with cost required' });
-  }
-
-  if (formData.marginTarget > 0) {
-    if (formData.marginTarget < formData.marginFloor) {
-      items.push({ field: 'Margin Target', step: 3, status: 'warning', message: `${formData.marginTarget}% — below floor (${formData.marginFloor}%)` });
+  if (decorationStep) {
+    if (formData.primaryDecorationMethod && formData.primaryDecoratorSupplier) {
+      items.push({ field: 'Primary Decoration', step: decorationStep, status: 'pass', message: `${formData.primaryDecorationMethod} via ${formData.primaryDecoratorSupplier}` });
+    } else if (formData.primaryDecorationMethod || formData.primaryDecoratorSupplier) {
+      items.push({ field: 'Primary Decoration', step: decorationStep, status: 'warning', message: 'Method or supplier not fully selected' });
     } else {
-      items.push({ field: 'Margin Target', step: 3, status: 'pass', message: `${formData.marginTarget}%` });
+      items.push({ field: 'Primary Decoration', step: decorationStep, status: 'warning', message: 'No decoration selected — recommended for activation' });
     }
-  } else {
-    items.push({ field: 'Margin Target', step: 3, status: 'error', message: 'Required — missing' });
+
+    if (formData.decorationMethods.length > 0) {
+      const preferred = formData.decorationMethods.find(d => d.preferred);
+      items.push({ field: 'Decoration Detail', step: decorationStep, status: 'pass', message: `${formData.decorationMethods.length} method(s) — Preferred: ${preferred?.method || 'None'}` });
+      const methodsWithoutDecorator = formData.decorationMethods.filter(d => !d.decorator);
+      if (methodsWithoutDecorator.length > 0) {
+        items.push({ field: 'Decorator Assignment', step: decorationStep, status: 'warning', message: `${methodsWithoutDecorator.length} method(s) missing decorator` });
+      }
+    }
   }
 
-  // Step 4 validations
-  const blankImages = formData.assets.filter(a => a.category === 'blank' && a.status === 'complete');
-  const proposalOnly = isProposalOnlyProduct(formData);
-  if (blankImages.length > 0) {
-    items.push({ field: 'Blank Product Images', step: 4, status: 'pass', message: `${blankImages.length} image(s)` });
-  } else if (proposalOnly) {
-    items.push({ field: 'Blank Product Images', step: 4, status: 'error', message: 'Required for proposal-only products' });
-  } else {
-    items.push({ field: 'Blank Product Images', step: 4, status: 'warning', message: 'Recommended — no images uploaded' });
-  }
-
-  if (formData.liveOnWebsite) {
-    const packOk = websiteStorefrontPackComplete(formData.assets);
-    if (packOk) {
-      items.push({ field: 'Website storefront images', step: 4, status: 'pass', message: 'Tile, hover, and variant images present' });
+  if (pricingStep) {
+    if (formData.variants.length > 0) {
+      items.push({ field: 'Variants', step: pricingStep, status: 'pass', message: `${formData.variants.length} variant(s)` });
     } else {
-      const need: string[] = [];
-      if (!formData.assets.some(a => a.category === 'website_tile' && a.status === 'complete')) need.push('tile');
-      if (!formData.assets.some(a => a.category === 'website_hover' && a.status === 'complete')) need.push('hover');
-      if (!formData.assets.some(a => a.category === 'website_variant' && a.status === 'complete')) need.push('variant');
-      items.push({
-        field: 'Website storefront images',
-        step: 4,
-        status: 'error',
-        message: `Live on website requires: ${need.join(', ')} image(s)`,
-      });
+      items.push({ field: 'Variants', step: pricingStep, status: 'error', message: 'At least one variant required' });
+    }
+
+    if (formData.pricingTiers.length > 0 && formData.pricingTiers.some(t => t.unitCost > 0)) {
+      const decoratorRows = formData.pricingTiers.filter(t => t.source === 'decorator').length;
+      const tierMsg = decoratorRows > 0
+        ? `${formData.pricingTiers.length} tier(s) — ${decoratorRows} from rate card`
+        : `${formData.pricingTiers.length} tier(s)`;
+      items.push({ field: 'Pricing Tiers', step: pricingStep, status: 'pass', message: tierMsg });
+    } else {
+      items.push({ field: 'Pricing Tiers', step: pricingStep, status: 'error', message: 'At least one tier with cost required' });
+    }
+
+    if (formData.marginTarget > 0) {
+      if (formData.marginTarget < formData.marginFloor) {
+        items.push({ field: 'Margin Target', step: pricingStep, status: 'warning', message: `${formData.marginTarget}% — below floor (${formData.marginFloor}%)` });
+      } else {
+        items.push({ field: 'Margin Target', step: pricingStep, status: 'pass', message: `${formData.marginTarget}%` });
+      }
+    } else {
+      items.push({ field: 'Margin Target', step: pricingStep, status: 'error', message: 'Required — missing' });
+    }
+  }
+
+  if (assetsStep) {
+    const blankImages = formData.assets.filter(a => a.category === 'blank' && a.status === 'complete');
+    const proposalOnly = isProposalOnlyProduct(formData);
+    if (blankImages.length > 0) {
+      items.push({ field: 'Blank Product Images', step: assetsStep, status: 'pass', message: `${blankImages.length} image(s)` });
+    } else if (proposalOnly) {
+      items.push({ field: 'Blank Product Images', step: assetsStep, status: 'error', message: 'Required for proposal-only products' });
+    } else {
+      items.push({ field: 'Blank Product Images', step: assetsStep, status: 'warning', message: 'Recommended — no images uploaded' });
+    }
+
+    if (formData.liveOnWebsite) {
+      const packOk = websiteStorefrontPackComplete(formData.assets);
+      if (packOk) {
+        items.push({ field: 'Website storefront images', step: assetsStep, status: 'pass', message: 'Tile, hover, and variant images present' });
+      } else {
+        const need: string[] = [];
+        if (!formData.assets.some(a => a.category === 'website_tile' && a.status === 'complete')) need.push('tile');
+        if (!formData.assets.some(a => a.category === 'website_hover' && a.status === 'complete')) need.push('hover');
+        if (!formData.assets.some(a => a.category === 'website_variant' && a.status === 'complete')) need.push('variant');
+        items.push({
+          field: 'Website storefront images',
+          step: assetsStep,
+          status: 'error',
+          message: `Live on website requires: ${need.join(', ')} image(s)`,
+        });
+      }
     }
   }
 
@@ -144,12 +170,14 @@ export function getValidationReport(formData: ProductFormData): ValidationReport
   return { items, canActivate, totalRequired, totalComplete };
 }
 
-export function StepReview({ formData, onNavigateToStep, onActivate, validationReport }: StepReviewProps) {
-  const [expandedSections, setExpandedSections] = useState<Record<number, boolean>>({
-    1: true, 2: true, 3: true, 4: true,
-  });
+export function StepReview({ formData, onUpdate, onNavigateToStep, onActivate, validationReport, flowSteps }: StepReviewProps) {
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(flowSteps.filter((step) => step.id !== 'review').map((step) => [step.id, true])),
+  );
+  const [editingStep, setEditingStep] = useState<FlowStep['id'] | null>(null);
+  const stepNumberById = Object.fromEntries(flowSteps.map((step, index) => [step.id, index + 1])) as Record<FlowStep['id'], number | undefined>;
 
-  const toggleSection = (step: number) => {
+  const toggleSection = (step: FlowStep['id']) => {
     setExpandedSections(prev => ({ ...prev, [step]: !prev[step] }));
   };
 
@@ -177,11 +205,10 @@ export function StepReview({ formData, onNavigateToStep, onActivate, validationR
   };
 
   const appaFreightReview = formData.source === 'appa' ? (formData.appaFreight ?? DEFAULT_APPA_FREIGHT) : null;
+  const subcategories = formData.category ? SUBCATEGORIES[formData.category] || [] : [];
 
-  const sections = [
-    {
-      step: 1,
-      title: 'Core Details',
+  const sectionMap: Record<Exclude<FlowStep['id'], 'review'>, { icon: React.ReactNode; content: React.ReactNode }> = {
+    core: {
       icon: <Package size={18} />,
       content: (
         <div className="grid grid-cols-2 gap-x-6 gap-y-3">
@@ -192,17 +219,18 @@ export function StepReview({ formData, onNavigateToStep, onActivate, validationR
           <DetailRow label="Category" value={formData.category || '—'} />
           <DetailRow label="Subcategory" value={formData.subcategory || '—'} />
           <DetailRow label="Source" value={formData.source} />
-          <DetailRow label="Non-public" value={formData.isNonPublic ? 'Yes' : 'No'} />
-          <DetailRow label="Proposal-Only" value={formData.isProposalOnly ? 'Yes' : 'No'} />
           <div className="col-span-2">
             <DetailRow label="Description" value={formData.description || '—'} />
           </div>
+          {formData.productNote && (
+            <div className="col-span-2">
+              <DetailRow label="Note" value={formData.productNote} />
+            </div>
+          )}
         </div>
       ),
     },
-    {
-      step: 2,
-      title: 'Decoration',
+    decoration: {
       icon: <Printer size={18} />,
       content: (
         <div className="space-y-3">
@@ -232,9 +260,7 @@ export function StepReview({ formData, onNavigateToStep, onActivate, validationR
         </div>
       ),
     },
-    {
-      step: 3,
-      title: 'Variants & Pricing',
+    pricing: {
       icon: <Tag size={18} />,
       content: (
         <div className="space-y-4">
@@ -295,9 +321,7 @@ export function StepReview({ formData, onNavigateToStep, onActivate, validationR
         </div>
       ),
     },
-    {
-      step: 4,
-      title: 'Assets',
+    assets: {
       icon: <Image size={18} />,
       content: (
         <div className="space-y-3">
@@ -317,7 +341,17 @@ export function StepReview({ formData, onNavigateToStep, onActivate, validationR
         </div>
       ),
     },
-  ];
+  };
+
+  const sections = flowSteps
+    .filter((step): step is FlowStep & { id: Exclude<FlowStep['id'], 'review'> } => step.id !== 'review')
+    .map((step) => ({
+      id: step.id,
+      step: stepNumberById[step.id] ?? 0,
+      title: step.label,
+      icon: sectionMap[step.id].icon,
+      content: sectionMap[step.id].content,
+    }));
 
   const errorCount = validationReport.items.filter(i => i.status === 'error').length;
   const warningCount = validationReport.items.filter(i => i.status === 'warning').length;
@@ -388,11 +422,11 @@ export function StepReview({ formData, onNavigateToStep, onActivate, validationR
       {/* Summary Sections */}
       {sections.map(section => {
         const status = getStepStatus(section.step);
-        const isExpanded = expandedSections[section.step];
+        const isExpanded = expandedSections[section.id];
 
         return (
           <div
-            key={section.step}
+            key={section.id}
             className="rounded"
             style={{
               backgroundColor: 'var(--jolly-card)',
@@ -402,7 +436,7 @@ export function StepReview({ formData, onNavigateToStep, onActivate, validationR
           >
             <div
               className="flex items-center justify-between p-4 cursor-pointer"
-              onClick={() => toggleSection(section.step)}
+              onClick={() => toggleSection(section.id)}
               style={{ borderBottom: isExpanded ? '1px solid var(--jolly-border)' : 'none' }}
             >
               <div className="flex items-center gap-3">
@@ -417,7 +451,7 @@ export function StepReview({ formData, onNavigateToStep, onActivate, validationR
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={(e) => { e.stopPropagation(); onNavigateToStep(section.step); }}
+                  onClick={(e) => { e.stopPropagation(); setEditingStep(section.id); }}
                   className="flex items-center gap-1 px-2 py-1 rounded"
                   style={{
                     border: '1px solid var(--jolly-border)',
@@ -443,8 +477,265 @@ export function StepReview({ formData, onNavigateToStep, onActivate, validationR
           </div>
         );
       })}
+
+      {editingStep === 'core' && (
+        <ReviewEditModal
+          title="Edit Core Details"
+          onClose={() => setEditingStep(null)}
+          onOpenFullStep={() => {
+            setEditingStep(null);
+            onNavigateToStep(stepNumberById.core ?? 1);
+          }}
+        >
+          <div className="grid grid-cols-2 gap-4">
+            <ReviewField label="Product Name">
+              <input value={formData.productName} onChange={(e) => onUpdate({ productName: e.target.value })} style={inputStyle()} />
+            </ReviewField>
+            <ReviewField label="Supplier">
+              <select value={formData.supplier} onChange={(e) => onUpdate({ supplier: e.target.value })} style={inputStyle()}>
+                <option value="">Select supplier</option>
+                {SUPPLIERS.map((supplier) => (
+                  <option key={supplier} value={supplier}>{supplier}</option>
+                ))}
+              </select>
+            </ReviewField>
+            <ReviewField label="Supplier SKU">
+              <input value={formData.supplierSku} onChange={(e) => onUpdate({ supplierSku: e.target.value })} style={inputStyle()} />
+            </ReviewField>
+            <ReviewField label="Internal SKU">
+              <input value={formData.internalSku} onChange={(e) => onUpdate({ internalSku: e.target.value })} style={inputStyle()} />
+            </ReviewField>
+            <ReviewField label="Category">
+              <select value={formData.category} onChange={(e) => onUpdate({ category: e.target.value, subcategory: '' })} style={inputStyle()}>
+                <option value="">Select category</option>
+                {CATEGORIES.map((category) => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            </ReviewField>
+            <ReviewField label="Subcategory">
+              <select value={formData.subcategory} onChange={(e) => onUpdate({ subcategory: e.target.value })} style={inputStyle()}>
+                <option value="">Select subcategory</option>
+                {subcategories.map((subcategory) => (
+                  <option key={subcategory} value={subcategory}>{subcategory}</option>
+                ))}
+              </select>
+            </ReviewField>
+            <div className="col-span-2">
+              <ReviewField label="Description">
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => onUpdate({ description: e.target.value })}
+                  rows={5}
+                  style={{ ...inputStyle(), resize: 'vertical' }}
+                />
+              </ReviewField>
+            </div>
+            <div className="col-span-2">
+              <ReviewField label="Product Note (optional)">
+                <textarea
+                  value={formData.productNote}
+                  onChange={(e) => onUpdate({ productNote: e.target.value })}
+                  rows={3}
+                  placeholder="Internal note for sales reps"
+                  style={{ ...inputStyle(), resize: 'vertical' }}
+                />
+              </ReviewField>
+            </div>
+          </div>
+        </ReviewEditModal>
+      )}
+
+      {editingStep === 'decoration' && (
+        <ReviewEditModal
+          title="Edit Decoration"
+          onClose={() => setEditingStep(null)}
+          onOpenFullStep={() => {
+            setEditingStep(null);
+            onNavigateToStep(stepNumberById.decoration ?? 1);
+          }}
+        >
+          <div className="grid grid-cols-2 gap-4">
+            <ReviewField label="Primary Decoration Method">
+              <select value={formData.primaryDecorationMethod} onChange={(e) => onUpdate({ primaryDecorationMethod: e.target.value })} style={inputStyle()}>
+                <option value="">Select method</option>
+                {PRIMARY_DECORATION_METHODS.map((method) => (
+                  <option key={method} value={method}>{method}</option>
+                ))}
+              </select>
+            </ReviewField>
+            <ReviewField label="Primary Decorator Supplier">
+              <input value={formData.primaryDecoratorSupplier} onChange={(e) => onUpdate({ primaryDecoratorSupplier: e.target.value })} style={inputStyle()} />
+            </ReviewField>
+            {formData.source === 'bespoke' && (
+              <div className="col-span-2">
+                <ReviewField label="Bespoke Decoration Details">
+                  <textarea
+                    value={formData.bespokeDecorationDescription}
+                    onChange={(e) => onUpdate({ bespokeDecorationDescription: e.target.value })}
+                    rows={4}
+                    style={{ ...inputStyle(), resize: 'vertical' }}
+                  />
+                </ReviewField>
+              </div>
+            )}
+          </div>
+        </ReviewEditModal>
+      )}
+
+      {editingStep === 'pricing' && (
+        <ReviewEditModal
+          title="Edit Pricing Basics"
+          onClose={() => setEditingStep(null)}
+          onOpenFullStep={() => {
+            setEditingStep(null);
+            onNavigateToStep(stepNumberById.pricing ?? 1);
+          }}
+        >
+          <div className="grid grid-cols-2 gap-4">
+            <ReviewField label="Margin Target (%)">
+              <input type="number" value={formData.marginTarget} onChange={(e) => onUpdate({ marginTarget: Number(e.target.value) || 0 })} style={inputStyle()} />
+            </ReviewField>
+            <ReviewField label="Margin Floor (%)">
+              <input type="number" value={formData.marginFloor} onChange={(e) => onUpdate({ marginFloor: Number(e.target.value) || 0 })} style={inputStyle()} />
+            </ReviewField>
+            <ReviewField label="Rush Fee ($ / unit)">
+              <input type="number" step="0.01" value={formData.rushFee} onChange={(e) => onUpdate({ rushFee: Number(e.target.value) || 0 })} style={inputStyle()} />
+            </ReviewField>
+            <ReviewField label="Min Order Qty">
+              <input type="number" value={formData.minOrderQty} onChange={(e) => onUpdate({ minOrderQty: Number(e.target.value) || 0 })} style={inputStyle()} />
+            </ReviewField>
+            <ReviewField label="Max Order Qty">
+              <input type="number" value={formData.maxOrderQty ?? ''} onChange={(e) => onUpdate({ maxOrderQty: e.target.value ? Number(e.target.value) : null })} style={inputStyle()} />
+            </ReviewField>
+            {!appaFreightReview && (
+              <ReviewField label="Supplier is Decorator">
+                <select value={formData.supplierIsDecorator ? 'yes' : 'no'} onChange={(e) => onUpdate({ supplierIsDecorator: e.target.value === 'yes' })} style={inputStyle()}>
+                  <option value="no">No</option>
+                  <option value="yes">Yes</option>
+                </select>
+              </ReviewField>
+            )}
+          </div>
+        </ReviewEditModal>
+      )}
+
+      {editingStep === 'assets' && (
+        <ReviewEditModal
+          title="Edit Publication Settings"
+          onClose={() => setEditingStep(null)}
+          onOpenFullStep={() => {
+            setEditingStep(null);
+            onNavigateToStep(stepNumberById.assets ?? 1);
+          }}
+        >
+          <div className="space-y-4">
+            <ReviewField label="Live on website">
+              <select value={formData.liveOnWebsite ? 'yes' : 'no'} onChange={(e) => onUpdate({ liveOnWebsite: e.target.value === 'yes' })} style={inputStyle()}>
+                <option value="no">No</option>
+                <option value="yes">Yes</option>
+              </select>
+            </ReviewField>
+            <p style={{ fontSize: '13px', color: 'var(--jolly-text-secondary)' }}>
+              Use the full Assets step to upload or replace website, blank, and decoration files.
+            </p>
+          </div>
+        </ReviewEditModal>
+      )}
     </div>
   );
+}
+
+function ReviewEditModal({
+  title,
+  onClose,
+  children,
+  onOpenFullStep,
+}: {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+  onOpenFullStep?: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)' }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-2xl rounded-lg"
+        style={{
+          backgroundColor: 'var(--jolly-card)',
+          border: '1px solid var(--jolly-border)',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.18)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: 'var(--jolly-border)' }}>
+          <div>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--jolly-text-body)' }}>{title}</h3>
+            <p style={{ fontSize: '13px', color: 'var(--jolly-text-secondary)', marginTop: '4px' }}>
+              Changes save into the review summary immediately.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--jolly-text-secondary)', fontSize: '20px' }}
+            aria-label="Close inline editor"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="max-h-[70vh] overflow-y-auto px-5 py-5">{children}</div>
+
+        <div className="flex items-center justify-between border-t px-5 py-4" style={{ borderColor: 'var(--jolly-border)' }}>
+          {onOpenFullStep ? (
+            <button
+              type="button"
+              onClick={onOpenFullStep}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--jolly-primary)', fontWeight: 600, fontSize: '13px' }}
+            >
+              Open full step
+            </button>
+          ) : <span />}
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded px-4 py-2"
+            style={{ backgroundColor: 'var(--jolly-primary)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }}
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReviewField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--jolly-text-secondary)', marginBottom: '6px' }}>
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function inputStyle() {
+  return {
+    width: '100%',
+    border: '1px solid var(--jolly-border)',
+    borderRadius: '6px',
+    fontSize: '14px',
+    padding: '10px 12px',
+    backgroundColor: 'white',
+    color: 'var(--jolly-text-body)',
+  } as const;
 }
 
 function DetailRow({ label, value, small }: { label: string; value: string; small?: boolean }) {
