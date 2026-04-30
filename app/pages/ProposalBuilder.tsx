@@ -72,6 +72,22 @@ function buildInitialTierPrices(baseCost: number, decoCost: number, margin: numb
   }, {} as Record<PriceBreak, number>);
 }
 
+function normalizeLineItemTiers(
+  item: Omit<LineItem, 'tierPrices'> & { tierPrices?: Partial<Record<PriceBreak, number>> }
+): LineItem {
+  const fallback = buildInitialTierPrices(item.baseCost, item.decoCost, item.margin);
+  const merged = DEFAULT_PRICE_BREAKS.reduce((acc, tier) => {
+    const candidate = item.tierPrices?.[tier];
+    acc[tier] = typeof candidate === 'number' ? candidate : fallback[tier];
+    return acc;
+  }, {} as Record<PriceBreak, number>);
+
+  return {
+    ...item,
+    tierPrices: merged,
+  };
+}
+
 interface SearchProduct {
   id: string;
   name: string;
@@ -240,7 +256,7 @@ function resolveTierForQty(qty: number): PriceBreak {
 
 function computeUnitSell(item: LineItem): number {
   const resolvedTier = resolveTierForQty(item.qty);
-  return item.tierPrices[resolvedTier] ?? computeSellPrice(item.baseCost + item.decoCost, item.margin);
+  return item.tierPrices?.[resolvedTier] ?? computeSellPrice(item.baseCost + item.decoCost, item.margin);
 }
 
 function createLineItemFromSeed(product: ProposalSeedProduct): LineItem {
@@ -631,7 +647,7 @@ export function ProposalBuilder({
     isDesignRequestFlow ? 'Design request' : 'Draft'
   );
   const [lineItems, setLineItems] = useState<LineItem[]>(
-    () => (isDesignRequestFlow && isNewEntity ? [] : initialLineItems)
+    () => (isDesignRequestFlow && isNewEntity ? [] : initialLineItems).map(normalizeLineItemTiers)
   );
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -738,7 +754,13 @@ export function ProposalBuilder({
       }>;
 
       if (parsed.status) setStatus(parsed.status);
-      if (parsed.lineItems) setLineItems(parsed.lineItems);
+      if (parsed.lineItems) {
+        setLineItems(
+          parsed.lineItems.map((lineItem) =>
+            normalizeLineItemTiers(lineItem as Omit<LineItem, 'tierPrices'> & { tierPrices?: Partial<Record<PriceBreak, number>> })
+          )
+        );
+      }
       if (typeof parsed.internalNotes === 'string') setInternalNotes(parsed.internalNotes);
       if (typeof parsed.clientNotes === 'string') setClientNotes(parsed.clientNotes);
       if (parsed.attachments) setAttachments(parsed.attachments);
@@ -1440,7 +1462,7 @@ export function ProposalBuilder({
         </div>
 
         {/* MAIN CONTENT: Two column */}
-        <fieldset disabled={!isEditing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
+        <fieldset disabled={!isEditing && activeTab !== 'assets'} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
         <div className="flex-1 min-w-0 flex project-detail-body">
           {/* LEFT SUMMARY PANEL */}
           {(activeTab === 'details' || activeTab === 'design-request') && (
@@ -2306,11 +2328,11 @@ export function ProposalBuilder({
                                       type="number"
                                       min={0}
                                       step={0.01}
-                                      value={item.tierPrices[tier]}
+                                      value={item.tierPrices?.[tier] ?? computeSellPrice(item.baseCost + item.decoCost, item.margin)}
                                       onChange={(e) =>
                                         updateLineItem(item.id, {
                                           tierPrices: {
-                                            ...item.tierPrices,
+                                            ...(item.tierPrices ?? buildInitialTierPrices(item.baseCost, item.decoCost, item.margin)),
                                             [tier]: Number.parseFloat(e.target.value || '0'),
                                           },
                                         })
