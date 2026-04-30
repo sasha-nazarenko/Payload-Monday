@@ -4,12 +4,12 @@ import { useRole } from '../context/RoleContext';
 import { Link } from 'react-router';
 import { useNavigate } from 'react-router';
 import { PayloadUIButton as Button } from '../components/ui/payload-button';
+import { OrderNavigationState } from '../utils/salesWorkflow';
 import {
   Plus,
   Search,
   ChevronDown,
   AlertTriangle,
-  Info,
   Copy,
   ExternalLink,
   RotateCcw,
@@ -22,7 +22,7 @@ import {
 
 // --- Types ---
 
-type ProposalStatus = 'Design request' | 'Draft' | 'Sent' | 'Approved' | 'Won' | 'Lost' | 'Expired' | 'Finance Review';
+type ProposalStatus = 'Design request' | 'Draft' | 'Sent' | 'Approved' | 'Won' | 'Lost' | 'Expired';
 
 interface Proposal {
   id: string;
@@ -91,7 +91,7 @@ const proposals: Proposal[] = [
     totalValue: 14200.0,
     margin: 22,
     marginFloor: 25,
-    status: 'Finance Review',
+    status: 'Sent',
     dueDate: 'Mar 18',
     dueDateObj: new Date(2026, 2, 18),
     hasProposalOnly: false,
@@ -203,7 +203,7 @@ const proposals: Proposal[] = [
     totalValue: 7340.0,
     margin: 18.5,
     marginFloor: 25,
-    status: 'Finance Review',
+    status: 'Sent',
     dueDate: 'Mar 16',
     dueDateObj: new Date(2026, 2, 16),
     hasProposalOnly: false,
@@ -219,10 +219,9 @@ const statusConfig: Record<ProposalStatus, { bg: string; text: string; borderCol
   Won: { bg: '#E8F5E9', text: '#217346' },
   Lost: { bg: '#FFEBEE', text: '#C0392B' },
   Expired: { bg: '#F2F2F2', text: '#888888' },
-  'Finance Review': { bg: '#FFF8E1', text: '#7B5800', borderColor: '#F0E0A0' },
 };
 
-const allStatusFilters = ['All', 'Design request', 'Draft', 'Sent', 'Approved', 'Won', 'Lost', 'Expired', 'Finance Review'];
+const allStatusFilters = ['All', 'Design request', 'Draft', 'Sent', 'Approved', 'Won', 'Lost', 'Expired'];
 
 // --- Helpers ---
 
@@ -358,8 +357,6 @@ export function MyProposals() {
     return sortDirection === 'asc' ? 'ascending' : 'descending';
   }
 
-  const pendingApprovalCount = proposals.filter((p) => p.status === 'Finance Review').length;
-  const proposalOnlyCount = proposals.filter((p) => p.hasProposalOnly).length;
   const wonThisMonth = proposals.filter((p) => p.status === 'Won');
   const wonValue = wonThisMonth.reduce((s, p) => s + p.totalValue, 0);
 
@@ -393,9 +390,6 @@ export function MyProposals() {
             </p>
           </div>
           <div className="flex items-center gap-2 projects-list-header-actions">
-            <Button buttonStyle="secondary" size="small" onClick={() => navigate('/proposals/design-request/new')}>
-              <span className="inline-flex items-center gap-2"><Plus size={15} /> New Design Request</span>
-            </Button>
             <Button buttonStyle="primary" size="small" onClick={() => navigate('/proposals/new')}>
               <span className="inline-flex items-center gap-2"><Plus size={15} /> New Proposal</span>
             </Button>
@@ -425,91 +419,7 @@ export function MyProposals() {
               color="var(--jolly-success)"
               sub={`$${wonValue > 0 ? wonValue.toLocaleString() : '48,200'} value`}
             />
-            <KpiCard
-              label="Pending Approval"
-              value={pendingApprovalCount}
-              color="#7B5800"
-              sub="Finance review needed"
-              accentBorder
-            />
           </div>
-
-          {/* CALLOUT BANNERS */}
-          {pendingApprovalCount > 0 && (
-            <div
-              className="proposals-warning-banner flex items-start gap-3 p-4 rounded mb-3"
-              style={{
-                backgroundColor: 'var(--jolly-warning-bg)',
-                border: '1px solid #F0E0A0',
-                borderRadius: '6px',
-              }}
-            >
-              <AlertTriangle
-                size={16}
-                style={{ color: 'var(--jolly-warning)', flexShrink: 0, marginTop: '1px' }}
-              />
-              <div className="flex-1">
-                <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--jolly-warning)' }}>
-                  {pendingApprovalCount} proposals contain line items below the margin floor and
-                  require Finance approval before they can be sent to clients.
-                </p>
-              </div>
-              <button
-                className="flex items-center gap-1 flex-shrink-0"
-                style={{
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: 'var(--jolly-warning)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  textDecoration: 'underline',
-                  whiteSpace: 'nowrap',
-                  padding: 0,
-                }}
-              >
-                Review with Finance →
-              </button>
-            </div>
-          )}
-
-          {proposalOnlyCount > 0 && (
-            <div
-              className="proposals-info-banner flex items-start gap-3 p-4 rounded mb-4"
-              style={{
-                backgroundColor: '#F8F0FF',
-                border: '1px solid #E0D0F0',
-                borderRadius: '6px',
-              }}
-            >
-              <Info
-                size={16}
-                style={{ color: '#7C3AED', flexShrink: 0, marginTop: '1px' }}
-              />
-              <div className="flex-1">
-                <p style={{ fontSize: '14px', fontWeight: 500, color: '#7C3AED' }}>
-                  {proposalOnlyCount} proposal includes Proposal-Only products. These will be
-                  activated in the catalogue if the proposal is marked as Won.
-                </p>
-              </div>
-              <button
-                className="flex items-center gap-1 flex-shrink-0"
-                style={{
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: '#7C3AED',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  textDecoration: 'underline',
-                  whiteSpace: 'nowrap',
-                  padding: 0,
-                }}
-              >
-                View proposal →
-              </button>
-            </div>
-          )}
 
           {/* FILTER / SEARCH BAR */}
           <div
@@ -762,7 +672,6 @@ export function MyProposals() {
                   <tbody>
                     {sorted.map((p, idx) => {
                       const isBelowFloor = p.margin < p.marginFloor;
-                      const isFinanceReview = p.status === 'Finance Review';
                       const isWon = p.status === 'Won';
                       const isExpired = p.status === 'Expired';
                       const nearDue = isDueNear(p.dueDateObj) && !isPast(p.dueDateObj);
@@ -770,7 +679,6 @@ export function MyProposals() {
 
                       let rowBg = idx % 2 === 0 ? '#FFFFFF' : 'var(--jolly-row-alt)';
                       if (isWon) rowBg = '#F6FFF6';
-                      if (isFinanceReview) rowBg = '#FFFDF5';
 
                       return (
                         <tr
@@ -779,9 +687,7 @@ export function MyProposals() {
                           onMouseLeave={() => setHoveredRow(null)}
                           style={{
                             borderTop: '1px solid var(--jolly-border)',
-                            borderLeft: isFinanceReview
-                              ? '3px solid var(--jolly-warning)'
-                              : isWon
+                            borderLeft: isWon
                               ? '3px solid var(--jolly-success)'
                               : '3px solid transparent',
                             backgroundColor:
@@ -965,7 +871,7 @@ export function MyProposals() {
                               >
                                 <Eye size={12} /> Open
                               </Link>
-                              <SecondaryAction status={p.status} />
+                              <SecondaryAction proposal={p} />
                             </div>
                           </td>
                         </tr>
@@ -1101,7 +1007,7 @@ export function MyProposals() {
                 Try adjusting your filters or create a new proposal.
               </p>
               <Button buttonStyle="primary" size="small" onClick={() => navigate('/proposals/new')}>
-                <span className="inline-flex items-center gap-2"><Plus size={15} /> New Proposal</span>
+                <span className="inline-flex items-center gap-2"><Plus size={15} /> New Custom Proposal</span>
               </Button>
             </div>
           )}
@@ -1113,7 +1019,9 @@ export function MyProposals() {
 
 // --- Secondary Action Button per status ---
 
-function SecondaryAction({ status }: { status: ProposalStatus }) {
+function SecondaryAction({ proposal }: { proposal: Proposal }) {
+  const navigate = useNavigate();
+  const status = proposal.status;
   const config: Record<
     ProposalStatus,
     { label: string; icon: ReactNode } | null
@@ -1125,11 +1033,13 @@ function SecondaryAction({ status }: { status: ProposalStatus }) {
     Won: { label: 'Create order', icon: <ShoppingCart size={12} /> },
     Lost: { label: 'Duplicate', icon: <Copy size={12} /> },
     Expired: { label: 'Reactivate', icon: <RotateCcw size={12} /> },
-    'Finance Review': { label: 'View approval', icon: <ExternalLink size={12} /> },
   };
 
   const action = config[status];
   if (!action) return null;
+
+  const isPhase3Action = status === 'Approved' || status === 'Won';
+  const isDeadAction = status === 'Design request' || status === 'Draft' || status === 'Sent' || status === 'Lost' || status === 'Expired';
 
   return (
     <button
@@ -1137,21 +1047,54 @@ function SecondaryAction({ status }: { status: ProposalStatus }) {
       style={{
         fontSize: '12px',
         fontWeight: 500,
-        color: 'var(--jolly-text-secondary)',
+        color: isDeadAction ? 'var(--jolly-text-disabled)' : 'var(--jolly-text-secondary)',
         border: '1px solid var(--jolly-border)',
         borderRadius: '4px',
         backgroundColor: 'white',
-        cursor: 'pointer',
+        cursor: isDeadAction ? 'not-allowed' : 'pointer',
+        opacity: isDeadAction ? 0.6 : 1,
         whiteSpace: 'nowrap',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = 'var(--jolly-surface)';
+        if (!isDeadAction) e.currentTarget.style.backgroundColor = 'var(--jolly-surface)';
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.backgroundColor = 'white';
       }}
+      disabled={isDeadAction}
+      onClick={() => {
+        if (isPhase3Action) {
+          navigate('/orders/new', {
+            state: {
+              orderSeed: {
+                proposalId: proposal.id,
+                proposalTitle: proposal.ref,
+                clientName: proposal.client,
+                eventName: proposal.event,
+                dueDate: proposal.dueDate,
+                status: proposal.status,
+                totalValue: proposal.totalValue,
+                productCount: proposal.productCount,
+                unitCount: proposal.unitCount,
+                lineItems: [
+                  {
+                    id: `${proposal.id}-summary`,
+                    name: `${proposal.productCount} carried-forward proposal items`,
+                    supplier: 'Mixed suppliers',
+                    qty: proposal.unitCount,
+                    unitPrice: proposal.totalValue / Math.max(proposal.unitCount, 1),
+                    source: 'Proposal carry-forward',
+                  },
+                ],
+              },
+            } satisfies OrderNavigationState,
+          });
+        }
+      }}
     >
-      {action.icon} {action.label}
+      {action.icon}
+      {isPhase3Action && <span style={{ marginLeft: '4px', fontSize: '10px', fontWeight: 700, opacity: 0.7 }}>(Phase 3)</span>}
+      {action.label}
     </button>
   );
 }

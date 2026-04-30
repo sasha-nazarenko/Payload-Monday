@@ -7,6 +7,7 @@ import { Dashboard } from './pages/Dashboard';
 import { PricingRules } from './pages/PricingRules';
 import { MyProposals } from './pages/MyProposals';
 import { ProposalBuilder } from './pages/ProposalBuilder';
+import { OrderBuilder } from './pages/OrderBuilder';
 import { DecoratorMatrix } from './pages/DecoratorMatrix';
 import { ReactAdminView } from './pages/ReactAdminView';
 import { UnderConstruction } from './pages/UnderConstruction';
@@ -47,15 +48,19 @@ export const router = createBrowserRouter([
   },
   {
     path: '/proposals/new',
-    element: <ProposalBuilder flow="proposal" />,
+    element: <ProposalBuilder key="proposal-new" />,
   },
   {
     path: '/proposals/design-request/new',
-    element: <ProposalBuilder flow="design-request" />,
+    element: <ProposalBuilder key="design-request-new" flow="design-request" />,
   },
   {
     path: '/proposals/:proposalId',
-    element: <ProposalBuilder flow="proposal" />,
+    element: <ProposalBuilder key="proposal-existing" />,
+  },
+  {
+    path: '/orders/new',
+    element: <OrderBuilder />,
   },
   {
     path: '/admin-react',

@@ -1,4 +1,4 @@
-import { Heart, Printer, Scissors, Zap, Sparkles, Pencil, Eye, Globe, EyeOff, AlertTriangle, Check } from 'lucide-react';
+import { Heart, Printer, Scissors, Zap, Sparkles, Pencil, Eye, Globe, EyeOff, AlertTriangle, Check, Bookmark, FolderPlus } from 'lucide-react';
 import { useState, useRef } from 'react';
 import { Link } from 'react-router';
 import { Product } from '../types';
@@ -10,6 +10,9 @@ interface ProductCardProps {
   product: Product;
   isSelected?: boolean;
   onToggleSelect?: (productId: string) => void;
+  isInShortlist?: boolean;
+  onToggleShortlist?: (product: Product) => void;
+  onAddToProposal?: (product: Product) => void;
 }
 
 const decorationIcons: Record<string, React.ReactNode> = {
@@ -19,7 +22,14 @@ const decorationIcons: Record<string, React.ReactNode> = {
   'Digital Print': <Sparkles size={14} />,
 };
 
-export function ProductCard({ product, isSelected = false, onToggleSelect }: ProductCardProps) {
+export function ProductCard({
+  product,
+  isSelected = false,
+  onToggleSelect,
+  isInShortlist = false,
+  onToggleShortlist,
+  onAddToProposal,
+}: ProductCardProps) {
   const [isFavorite, setIsFavorite] = useState(false);
   const [showMissingTooltip, setShowMissingTooltip] = useState(false);
   const { currentRole } = useRole();
@@ -76,6 +86,59 @@ export function ProductCard({ product, isSelected = false, onToggleSelect }: Pro
     e.stopPropagation();
     setIsFavorite(!isFavorite);
   };
+
+  const handleShortlistClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onToggleShortlist?.(product);
+  };
+
+  const handleAddToProposalClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onAddToProposal?.(product);
+  };
+
+  const salesActions = (
+    <div className="grid grid-cols-2 gap-2 mt-auto">
+      <button
+        className="flex items-center justify-center gap-1.5 py-2 rounded border transition-colors"
+        style={{
+          borderColor: isInShortlist ? 'var(--jolly-primary)' : 'var(--jolly-border)',
+          color: isInShortlist ? 'var(--jolly-primary)' : 'var(--jolly-text-secondary)',
+          backgroundColor: isInShortlist ? 'var(--jolly-surface)' : 'white',
+          fontSize: '13px',
+          fontWeight: 600,
+          borderRadius: '6px',
+          height: '36px',
+          cursor: 'pointer',
+        }}
+        onClick={handleShortlistClick}
+      >
+        <Bookmark size={13} />
+        {isInShortlist ? 'Shortlisted' : 'Shortlist'}
+      </button>
+      <button
+        className="flex items-center justify-center gap-1.5 py-2 rounded border transition-colors"
+        style={{
+          borderColor: 'var(--jolly-primary)',
+          color: 'var(--jolly-primary)',
+          backgroundColor: 'white',
+          fontSize: '13px',
+          fontWeight: 600,
+          borderRadius: '6px',
+          height: '36px',
+          cursor: 'pointer',
+        }}
+        onClick={handleAddToProposalClick}
+        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--jolly-surface)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'white'; }}
+      >
+        <FolderPlus size={13} />
+        Add to Proposal
+      </button>
+    </div>
+  );
 
   return (
     <Link
@@ -275,59 +338,47 @@ export function ProductCard({ product, isSelected = false, onToggleSelect }: Pro
 
         {/* View Pricing / Manage Listing Button */}
         {isAdmin ? (
-          <div className="flex gap-2 mt-auto">
-            <button
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded border transition-colors"
-              style={{
-                borderColor: 'var(--jolly-primary)',
-                color: 'var(--jolly-primary)',
-                backgroundColor: 'white',
-                fontSize: '13px',
-                fontWeight: 600,
-                borderRadius: '6px',
-                height: '36px',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--jolly-surface)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'white'; }}
-            >
-              <Pencil size={13} />
-              Manage Listing
-            </button>
-            <button
-              className="flex items-center justify-center gap-1 px-3 py-2 rounded border transition-colors"
-              style={{
-                borderColor: 'var(--jolly-border)',
-                color: 'var(--jolly-text-secondary)',
-                backgroundColor: 'white',
-                fontSize: '13px',
-                borderRadius: '6px',
-                height: '36px',
-                cursor: 'pointer',
-              }}
-              title="Preview on Storefront"
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--jolly-bg)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'white'; }}
-            >
-              <Eye size={14} />
-            </button>
+          <div className="mt-auto space-y-2">
+            <div className="flex gap-2">
+              <button
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded border transition-colors"
+                style={{
+                  borderColor: 'var(--jolly-primary)',
+                  color: 'var(--jolly-primary)',
+                  backgroundColor: 'white',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  borderRadius: '6px',
+                  height: '36px',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--jolly-surface)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'white'; }}
+              >
+                <Pencil size={13} />
+                Manage Listing
+              </button>
+              <button
+                className="flex items-center justify-center gap-1 px-3 py-2 rounded border transition-colors"
+                style={{
+                  borderColor: 'var(--jolly-border)',
+                  color: 'var(--jolly-text-secondary)',
+                  backgroundColor: 'white',
+                  fontSize: '13px',
+                  borderRadius: '6px',
+                  height: '36px',
+                  cursor: 'pointer',
+                }}
+                title="Preview on Storefront"
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--jolly-bg)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'white'; }}
+              >
+                <Eye size={14} />
+              </button>
+            </div>
+            {salesActions}
           </div>
         ) : (
-          <button
-            className="w-full py-2 rounded border transition-colors mt-auto"
-            style={{
-              borderColor: 'var(--jolly-primary)',
-              color: 'var(--jolly-primary)',
-              backgroundColor: 'white',
-              fontSize: '14px',
-              fontWeight: 600,
-              borderRadius: '6px',
-              height: '36px',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--jolly-surface)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'white'; }}
-          >
-            View Pricing
-          </button>
+          salesActions
         )}
       </div>
     </Link>

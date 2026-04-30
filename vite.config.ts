@@ -4,6 +4,11 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  define: {
+    // @payloadcms/ui bundles Next.js internals that reference process.env
+    'process.env': {},
+    'process.env.NODE_ENV': JSON.stringify('development'),
+  },
   server: {
     // Fixes “can’t connect” when only one of localhost / 127.0.0.1 works, and allows LAN URLs.
     host: true,

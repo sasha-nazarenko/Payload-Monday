@@ -12,9 +12,23 @@ interface ProductGridProps {
   onPageChange: (page: number) => void;
   selectedIds?: string[];
   onToggleSelect?: (productId: string) => void;
+  shortlistIds?: string[];
+  onToggleShortlist?: (product: Product) => void;
+  onAddToProposal?: (product: Product) => void;
 }
 
-export function ProductGrid({ products, currentPage, totalPages, totalCount, onPageChange, selectedIds = [], onToggleSelect }: ProductGridProps) {
+export function ProductGrid({
+  products,
+  currentPage,
+  totalPages,
+  totalCount,
+  onPageChange,
+  selectedIds = [],
+  onToggleSelect,
+  shortlistIds = [],
+  onToggleShortlist,
+  onAddToProposal,
+}: ProductGridProps) {
   const { clearFilters } = useFilters();
   
   if (products.length === 0) {
@@ -49,6 +63,9 @@ export function ProductGrid({ products, currentPage, totalPages, totalCount, onP
             product={product}
             isSelected={selectedIds.includes(product.id)}
             onToggleSelect={onToggleSelect}
+            isInShortlist={shortlistIds.includes(product.id)}
+            onToggleShortlist={onToggleShortlist}
+            onAddToProposal={onAddToProposal}
           />
         ))}
       </div>

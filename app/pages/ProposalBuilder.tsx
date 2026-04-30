@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect, Fragment } from 'react';
+import { useState, useRef, useEffect, Fragment, useMemo } from 'react';
 import { LeftSidebar } from '../components/LeftSidebar';
 import { useRole } from '../context/RoleContext';
-import { Link, useLocation } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { PayloadUIButton as Button } from '../components/ui/payload-button';
 import {
   ChevronDown,
@@ -22,7 +22,10 @@ import {
   Bold,
   Italic,
   List,
+  ClipboardList,
 } from 'lucide-react';
+import PptxGenJS from 'pptxgenjs';
+import { consumePendingProposalState, ProposalNavigationState, ProposalSeedProduct } from '../utils/salesWorkflow';
 
 // --- Types ---
 
@@ -34,6 +37,7 @@ type ProductDesignType = '' | 'Custom design' | 'Unbranded';
 type DesignFilesType = '' | 'Provided' | 'Requested' | 'Not available';
 type PricingSpreadsheetType = '' | 'Required' | 'Not Required';
 type PriceBreak = '10' | '25' | '50' | '100' | '250' | '500' | '1000';
+const DEFAULT_PRICE_BREAKS: PriceBreak[] = ['10', '25', '50', '100', '250', '500', '1000'];
 
 interface LineItem {
   id: string;
@@ -57,6 +61,15 @@ interface LineItem {
   decorationOptions: string[];
   margin: number;
   marginFloor: number;
+  tierPrices: Record<PriceBreak, number>;
+}
+
+function buildInitialTierPrices(baseCost: number, decoCost: number, margin: number): Record<PriceBreak, number> {
+  const unitSell = computeSellPrice(baseCost + decoCost, margin);
+  return DEFAULT_PRICE_BREAKS.reduce((acc, tier) => {
+    acc[tier] = Number(unitSell.toFixed(2));
+    return acc;
+  }, {} as Record<PriceBreak, number>);
 }
 
 interface SearchProduct {
@@ -105,6 +118,7 @@ const initialLineItems: LineItem[] = [
     decorationOptions: ['Screen Print — Print Co Melb', 'DTG — DecoPrint Syd', 'Embroidery — ThreadWorks'],
     margin: 42,
     marginFloor: 25,
+    tierPrices: buildInitialTierPrices(3.8, 0.4, 42),
   },
   {
     id: '2',
@@ -128,6 +142,7 @@ const initialLineItems: LineItem[] = [
     decorationOptions: ['Embroidery — ThreadWorks', 'Screen Print — Print Co Melb'],
     margin: 38,
     marginFloor: 25,
+    tierPrices: buildInitialTierPrices(6.5, 1.8, 38),
   },
   {
     id: '3',
@@ -151,6 +166,7 @@ const initialLineItems: LineItem[] = [
     decorationOptions: ['Pad Print — ProMark', 'Laser Engrave — EngraveIt', 'Full Wrap — WrapCo'],
     margin: 19,
     marginFloor: 25,
+    tierPrices: buildInitialTierPrices(5.2, 0.9, 19),
   },
   {
     id: '4',
@@ -174,6 +190,7 @@ const initialLineItems: LineItem[] = [
     decorationOptions: ['Laser Engrave — EngraveIt', 'Pad Print — ProMark'],
     margin: 44,
     marginFloor: 20,
+    tierPrices: buildInitialTierPrices(3.1, 0.45, 44),
   },
 ];
 
@@ -199,7 +216,7 @@ const statusColors: Record<ProposalStatus, { bg: string; text: string }> = {
 
 const allStatuses: ProposalStatus[] = ['Design request', 'Draft', 'Sent', 'Approved', 'Won', 'Lost'];
 const searchCategories = ['All', 'Bags', 'Headwear', 'Drinkware', 'Tech', 'Stationery', 'Accessories', 'Apparel'];
-const allPriceBreaks: PriceBreak[] = ['10', '25', '50', '100', '250', '500', '1000'];
+const allPriceBreaks: PriceBreak[] = DEFAULT_PRICE_BREAKS;
 
 // --- Helpers ---
 
@@ -208,13 +225,62 @@ function computeSellPrice(unitCost: number, margin: number): number {
 }
 
 function computeLineTotal(item: LineItem): number {
-  const unitCost = item.baseCost + item.decoCost;
-  const sell = computeSellPrice(unitCost, item.margin);
-  return sell * item.qty;
+  return computeUnitSell(item) * item.qty;
+}
+
+function resolveTierForQty(qty: number): PriceBreak {
+  let selected: PriceBreak = DEFAULT_PRICE_BREAKS[0];
+  for (const tier of DEFAULT_PRICE_BREAKS) {
+    if (qty >= parseInt(tier, 10)) {
+      selected = tier;
+    }
+  }
+  return selected;
 }
 
 function computeUnitSell(item: LineItem): number {
-  return computeSellPrice(item.baseCost + item.decoCost, item.margin);
+  const resolvedTier = resolveTierForQty(item.qty);
+  return item.tierPrices[resolvedTier] ?? computeSellPrice(item.baseCost + item.decoCost, item.margin);
+}
+
+function createLineItemFromSeed(product: ProposalSeedProduct): LineItem {
+  return {
+    id: `${product.id}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    product: product.name,
+    productLink: '',
+    requiresSecondDecoration: false,
+    priceBreak: 100,
+    quoteNotes: '',
+    designNotes: '',
+    supplier: product.supplier,
+    sku: product.sku,
+    source: product.source,
+    image: product.image,
+    variant: 'Default',
+    variantOptions: ['Default'],
+    qty: 100,
+    moq: 25,
+    baseCost: product.price,
+    decoCost: 0.4,
+    decoration: 'Screen Print — Print Co Melb',
+    decorationOptions: ['Screen Print — Print Co Melb', 'DTG — DecoPrint Syd'],
+    margin: 35,
+    marginFloor: 25,
+    tierPrices: buildInitialTierPrices(product.price, 0.4, 35),
+  };
+}
+
+function createSeedFromLineItem(item: LineItem): ProposalSeedProduct {
+  return {
+    id: item.id,
+    name: item.product,
+    supplier: item.supplier,
+    price: item.baseCost,
+    image: item.image,
+    source: item.source,
+    category: 'Proposal',
+    sku: item.sku,
+  };
 }
 
 // --- Sub Components ---
@@ -331,10 +397,12 @@ function ProductSearchSlideOver({
   open,
   onClose,
   onAdd,
+  onRequestAppa,
 }: {
   open: boolean;
   onClose: () => void;
   onAdd: (product: SearchProduct) => void;
+  onRequestAppa: (query: string) => void;
 }) {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All');
@@ -515,6 +583,23 @@ function ProductSearchSlideOver({
               <p style={{ fontSize: '14px', color: 'var(--jolly-text-disabled)' }}>
                 No products found matching "{query}"
               </p>
+              <button
+                onClick={() => onRequestAppa(query)}
+                className="mt-3"
+                style={{
+                  height: '32px',
+                  padding: '0 12px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--jolly-border)',
+                  backgroundColor: 'white',
+                  color: 'var(--jolly-primary)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Request from APPA
+              </button>
             </div>
           )}
         </div>
@@ -531,7 +616,12 @@ export function ProposalBuilder({
   flow?: 'proposal' | 'design-request';
 }) {
   const isDesignRequestFlow = flow === 'design-request';
+  const navigate = useNavigate();
   const location = useLocation();
+  const [pendingNavState] = useState<ProposalNavigationState | null>(() => consumePendingProposalState());
+  const navState = ((location.state as ProposalNavigationState | null) ?? pendingNavState);
+  const seededProducts = useMemo(() => navState?.prefillProducts ?? [], [navState]);
+  const draftSeed = navState?.draftSeed;
   const isNewEntity = location.pathname.endsWith('/new');
   const statusOptions: ProposalStatus[] = isDesignRequestFlow
     ? allStatuses
@@ -571,6 +661,7 @@ export function ProposalBuilder({
   type TabKey =
     | 'details'
     | 'design-request'
+    | 'assets'
     | 'line-items'
     | 'inventory-items'
     | 'quantities'
@@ -587,8 +678,188 @@ export function ProposalBuilder({
   const [contactEmail, setContactEmail] = useState(isNewEntity ? '' : 'james.wren@apex.com.au');
   const [eventName, setEventName] = useState(isNewEntity ? '' : 'Q1 Staff Welcome Kit');
   const [dueDate, setDueDate] = useState(isNewEntity ? '' : '2026-03-20');
+  const [mondayCardUrl, setMondayCardUrl] = useState(
+    isNewEntity ? '' : 'https://monday.com/boards/123456/pulses/987654321'
+  );
+  const [creativeDirection, setCreativeDirection] = useState(
+    isNewEntity ? '' : 'Modern and clean aesthetic, focus on sustainability messaging.'
+  );
+  const [brandPrimaryColor, setBrandPrimaryColor] = useState(isNewEntity ? '#1F5C9E' : '#1F5C9E');
+  const [brandSecondaryColor, setBrandSecondaryColor] = useState(isNewEntity ? '#7C3AED' : '#7C3AED');
+  const [exportPptType, setExportPptType] = useState<'quote' | 'proposal'>('quote');
 
   const hasMarginIssue = lineItems.some((item) => item.margin < item.marginFloor);
+  const hasCoreDetails = Boolean(customerName.trim() && eventName.trim() && dueDate && lineItems.length > 0);
+  const hasDesignBriefFields = Boolean(
+    proposalTemplate && productDesign && designFiles && creativeDirection.trim() && dueDate
+  );
+  const proposalType = isDesignRequestFlow
+    ? 'design-request'
+    : hasDesignBriefFields
+    ? 'custom-proposal'
+    : 'quick-quote';
+  const proposalTypeLabel =
+    proposalType === 'custom-proposal' ? 'Custom Proposal' : proposalType === 'quick-quote' ? 'Quick Quote' : 'Design Request';
+  const hasDesignerAssets = attachments.length > 0;
+  const canExportQuotePpt = hasCoreDetails;
+  const canExportProposalPpt = hasCoreDetails && hasDesignerAssets;
+  const canExportSelectedPpt = exportPptType === 'quote' ? canExportQuotePpt : canExportProposalPpt;
+
+  const draftStorageKey = `upc-prototype-draft:${flow}:${entityId || 'new'}`;
+
+  useEffect(() => {
+    if (!isNewEntity || typeof window === 'undefined') return;
+    const raw = window.localStorage.getItem(draftStorageKey);
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw) as Partial<{
+        status: ProposalStatus;
+        lineItems: LineItem[];
+        internalNotes: string;
+        clientNotes: string;
+        attachments: string[];
+        opportunityTier: OpportunityTier;
+        proposalTemplate: ProposalTemplate;
+        productDesign: ProductDesignType;
+        designFiles: DesignFilesType;
+        pricingSpreadsheet: PricingSpreadsheetType;
+        requiredPriceBreaks: PriceBreak[];
+        entityTitle: string;
+        customerName: string;
+        contactName: string;
+        contactEmail: string;
+        eventName: string;
+        dueDate: string;
+        mondayCardUrl: string;
+        creativeDirection: string;
+        brandPrimaryColor: string;
+        brandSecondaryColor: string;
+      }>;
+
+      if (parsed.status) setStatus(parsed.status);
+      if (parsed.lineItems) setLineItems(parsed.lineItems);
+      if (typeof parsed.internalNotes === 'string') setInternalNotes(parsed.internalNotes);
+      if (typeof parsed.clientNotes === 'string') setClientNotes(parsed.clientNotes);
+      if (parsed.attachments) setAttachments(parsed.attachments);
+      if (parsed.opportunityTier) setOpportunityTier(parsed.opportunityTier);
+      if (parsed.proposalTemplate) setProposalTemplate(parsed.proposalTemplate);
+      if (parsed.productDesign) setProductDesign(parsed.productDesign);
+      if (parsed.designFiles) setDesignFiles(parsed.designFiles);
+      if (parsed.pricingSpreadsheet) setPricingSpreadsheet(parsed.pricingSpreadsheet);
+      if (parsed.requiredPriceBreaks) setRequiredPriceBreaks(parsed.requiredPriceBreaks);
+      if (typeof parsed.entityTitle === 'string') setEntityTitle(parsed.entityTitle);
+      if (typeof parsed.customerName === 'string') setCustomerName(parsed.customerName);
+      if (typeof parsed.contactName === 'string') setContactName(parsed.contactName);
+      if (typeof parsed.contactEmail === 'string') setContactEmail(parsed.contactEmail);
+      if (typeof parsed.eventName === 'string') setEventName(parsed.eventName);
+      if (typeof parsed.dueDate === 'string') setDueDate(parsed.dueDate);
+      if (typeof parsed.mondayCardUrl === 'string') setMondayCardUrl(parsed.mondayCardUrl);
+      if (typeof parsed.creativeDirection === 'string') setCreativeDirection(parsed.creativeDirection);
+      if (typeof parsed.brandPrimaryColor === 'string') setBrandPrimaryColor(parsed.brandPrimaryColor);
+      if (typeof parsed.brandSecondaryColor === 'string') setBrandSecondaryColor(parsed.brandSecondaryColor);
+    } catch {
+      // Ignore invalid local draft payload.
+    }
+  }, [draftStorageKey, isNewEntity]);
+
+  useEffect(() => {
+    if (!isNewEntity || seededProducts.length === 0) return;
+
+    setLineItems((items) => {
+      const existingNames = new Set(items.map((item) => item.product));
+      const additions = seededProducts
+        .filter((product) => !existingNames.has(product.name))
+        .map((product) => createLineItemFromSeed(product));
+
+      return additions.length > 0 ? [...items, ...additions] : items;
+    });
+
+    if (!entityTitle && navState?.sourceLabel === 'shortlist') {
+      setEntityTitle('Shortlisted Product Proposal');
+    }
+  }, [entityTitle, isNewEntity, navState?.sourceLabel, seededProducts]);
+
+  useEffect(() => {
+    if (!isNewEntity || !draftSeed) return;
+
+    if (draftSeed.entityTitle) setEntityTitle(draftSeed.entityTitle);
+    if (draftSeed.customerName) setCustomerName(draftSeed.customerName);
+    if (draftSeed.contactName) setContactName(draftSeed.contactName);
+    if (draftSeed.contactEmail) setContactEmail(draftSeed.contactEmail);
+    if (draftSeed.eventName) setEventName(draftSeed.eventName);
+    if (draftSeed.dueDate) setDueDate(draftSeed.dueDate);
+    if (typeof draftSeed.internalNotes === 'string') setInternalNotes(draftSeed.internalNotes);
+    if (typeof draftSeed.clientNotes === 'string') setClientNotes(draftSeed.clientNotes);
+    if (draftSeed.attachments) setAttachments(draftSeed.attachments);
+    if (draftSeed.opportunityTier) setOpportunityTier(draftSeed.opportunityTier as OpportunityTier);
+    if (draftSeed.proposalTemplate) setProposalTemplate(draftSeed.proposalTemplate as ProposalTemplate);
+    if (draftSeed.productDesign) setProductDesign(draftSeed.productDesign as ProductDesignType);
+    if (draftSeed.designFiles) setDesignFiles(draftSeed.designFiles as DesignFilesType);
+    if (draftSeed.pricingSpreadsheet) setPricingSpreadsheet(draftSeed.pricingSpreadsheet as PricingSpreadsheetType);
+    if (draftSeed.mondayCardUrl) setMondayCardUrl(draftSeed.mondayCardUrl);
+    if (draftSeed.creativeDirection) setCreativeDirection(draftSeed.creativeDirection);
+    if (draftSeed.brandPrimaryColor) setBrandPrimaryColor(draftSeed.brandPrimaryColor);
+    if (draftSeed.brandSecondaryColor) setBrandSecondaryColor(draftSeed.brandSecondaryColor);
+  }, [draftSeed, isNewEntity]);
+
+  useEffect(() => {
+    if (exportPptType === 'proposal' && !hasDesignerAssets) {
+      setExportPptType('quote');
+    }
+  }, [exportPptType, hasDesignerAssets]);
+
+  useEffect(() => {
+    if (!isNewEntity || typeof window === 'undefined') return;
+    const payload = {
+      status,
+      lineItems,
+      internalNotes,
+      clientNotes,
+      attachments,
+      opportunityTier,
+      proposalTemplate,
+      productDesign,
+      designFiles,
+      pricingSpreadsheet,
+      requiredPriceBreaks,
+      entityTitle,
+      customerName,
+      contactName,
+      contactEmail,
+      eventName,
+      dueDate,
+      mondayCardUrl,
+      creativeDirection,
+      brandPrimaryColor,
+      brandSecondaryColor,
+    };
+    window.localStorage.setItem(draftStorageKey, JSON.stringify(payload));
+  }, [
+    isNewEntity,
+    draftStorageKey,
+    status,
+    lineItems,
+    internalNotes,
+    clientNotes,
+    attachments,
+    opportunityTier,
+    proposalTemplate,
+    productDesign,
+    designFiles,
+    pricingSpreadsheet,
+    requiredPriceBreaks,
+    entityTitle,
+    customerName,
+    contactName,
+    contactEmail,
+    eventName,
+    dueDate,
+    mondayCardUrl,
+    creativeDirection,
+    brandPrimaryColor,
+    brandSecondaryColor,
+  ]);
 
   // Totals
   const totalItems = lineItems.length;
@@ -649,8 +920,27 @@ export function ProposalBuilder({
     setSearchOpen(false);
   }
 
+  function requestFromAppa(query: string) {
+    const fallbackName = query.trim() ? query.trim() : 'Requested APPA Product';
+    addFromSearch({
+      id: `appa-${Date.now()}`,
+      name: fallbackName,
+      supplier: 'APPA Pending Match',
+      price: 0,
+      image: IMG.notebook,
+      source: 'APPA',
+      category: 'Pending',
+    });
+  }
+
   function removeAttachment(name: string) {
     setAttachments((a) => a.filter((f) => f !== name));
+  }
+
+  function addAttachments(fileList: FileList | null) {
+    if (!fileList) return;
+    const uploadedNames = Array.from(fileList).map((file) => file.name);
+    setAttachments((existing) => Array.from(new Set([...existing, ...uploadedNames])));
   }
 
   function toggleRequiredPriceBreak(value: PriceBreak) {
@@ -659,19 +949,337 @@ export function ProposalBuilder({
     );
   }
 
+  async function getImageDataUrl(url: string): Promise<string | null> {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      return await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  async function exportAsPpt(audience: 'client' | 'design') {
+    if (audience === 'client' && !canExportQuotePpt) return;
+    if (audience === 'design' && !canExportProposalPpt) return;
+
+    const pptx = new PptxGenJS();
+    pptx.layout = 'LAYOUT_WIDE';
+    pptx.author = 'Jolly UPC';
+    pptx.company = 'Jolly';
+    const entityKind = isDesignRequestFlow ? 'Design Request' : 'Proposal';
+
+    const cover = pptx.addSlide();
+    cover.background = { color: 'F7FAFD' };
+    cover.addText(entityTitle || `Untitled ${entityKind}`, {
+      x: 0.7,
+      y: 0.9,
+      w: 12,
+      h: 0.6,
+      fontSize: 30,
+      bold: true,
+      color: '1F2937',
+    });
+    cover.addText(`${entityKind} Ref: ${entityId || 'Draft'}\nClient: ${customerName || '-'}\nEvent: ${eventName || '-'}\nDue: ${dueDate || '-'}`, {
+      x: 0.7,
+      y: 1.8,
+      w: 8,
+      h: 1.5,
+      fontSize: 14,
+      color: '374151',
+      valign: 'top',
+      breakLine: true,
+    });
+    cover.addText(`Created for: ${audience === 'client' ? 'Client-facing' : 'Design team'} output`, {
+      x: 0.7,
+      y: 4.2,
+      w: 8,
+      h: 0.3,
+      fontSize: 12,
+      color: '6B7280',
+    });
+
+    function addStandardSlide(item: LineItem) {
+      const slide = pptx.addSlide();
+      slide.addText(item.product, {
+        x: 0.6,
+        y: 0.5,
+        w: 7.5,
+        h: 0.5,
+        fontSize: 24,
+        bold: true,
+        color: '111827',
+      });
+      slide.addText(`SKU: ${item.sku}   Supplier: ${item.supplier}`, {
+        x: 0.6,
+        y: 1.0,
+        w: 9,
+        h: 0.3,
+        fontSize: 11,
+        color: '6B7280',
+      });
+
+      return slide;
+    }
+
+    function getTierRows(item: LineItem) {
+      return [25, 50, 100, 250].map((qty) => {
+        const unitCost = item.baseCost + item.decoCost;
+        const sell = computeSellPrice(unitCost, item.margin);
+        return [`${qty}+`, `$${unitCost.toFixed(2)}`, `$${sell.toFixed(2)}`];
+      });
+    }
+
+    for (const item of lineItems) {
+      const slide = addStandardSlide(item);
+
+      const imageData = await getImageDataUrl(item.image);
+      const tiers = getTierRows(item);
+
+      if (proposalTemplate === 'HLC - Items') {
+        slide.background = { color: 'F8FAFF' };
+        slide.addShape(pptx.ShapeType.roundRect, {
+          x: 0.5,
+          y: 1.25,
+          w: 12.3,
+          h: 4.6,
+          fill: { color: 'FFFFFF' },
+          line: { color: 'DBE4F0', pt: 1 },
+          radius: 0.08,
+        });
+        if (imageData) {
+          slide.addImage({ data: imageData, x: 0.9, y: 1.7, w: 2.5, h: 2.0 });
+        }
+        slide.addText(
+          `Item summary\nVariant: ${item.variant}\nMOQ: ${item.moq}\nDecoration: ${item.decoration}\nSource: ${item.source}`,
+          {
+            x: 3.8,
+            y: 1.7,
+            w: 3.8,
+            h: 2.0,
+            fontSize: 10,
+            color: '334155',
+            breakLine: true,
+          }
+        );
+        slide.addTable([
+          ['Qty', 'Unit Cost', 'Sell'],
+          ...tiers,
+        ], {
+          x: 7.9,
+          y: 1.7,
+          w: 4.5,
+          h: 2.4,
+          border: { color: 'CBD5E1', pt: 1 },
+          fill: 'FFFFFF',
+          fontSize: 10,
+        });
+        slide.addText(`Quote notes: ${item.quoteNotes || '-'}\nDesign notes: ${item.designNotes || '-'}`, {
+          x: 0.9,
+          y: 4.2,
+          w: 11.4,
+          h: 1.3,
+          fontSize: 10,
+          color: '475569',
+          breakLine: true,
+        });
+      } else if (proposalTemplate === 'HLC - Product Collage') {
+        slide.background = { color: 'F4F7FB' };
+        const cardCoords = [
+          { x: 0.8, y: 1.4 },
+          { x: 3.95, y: 1.4 },
+          { x: 7.1, y: 1.4 },
+          { x: 10.25, y: 1.4 },
+        ];
+        cardCoords.forEach((c, idx) => {
+          slide.addShape(pptx.ShapeType.roundRect, {
+            x: c.x,
+            y: c.y,
+            w: 2.7,
+            h: 2.5,
+            fill: { color: 'FFFFFF' },
+            line: { color: 'D7E0EA', pt: 1 },
+            radius: 0.08,
+          });
+          if (imageData) {
+            slide.addImage({ data: imageData, x: c.x + 0.2, y: c.y + 0.2, w: 2.3, h: 1.6 });
+          }
+          slide.addText(`Option ${idx + 1}`, {
+            x: c.x + 0.2,
+            y: c.y + 1.9,
+            w: 2.2,
+            h: 0.2,
+            fontSize: 9,
+            bold: true,
+            color: '475569',
+          });
+          slide.addText(`$${computeUnitSell(item).toFixed(2)}/unit`, {
+            x: c.x + 0.2,
+            y: c.y + 2.1,
+            w: 2.2,
+            h: 0.2,
+            fontSize: 9,
+            color: '1F5C9E',
+          });
+        });
+        slide.addTable([
+          ['Qty Tier', 'Unit Cost', 'Sell Price'],
+          ...tiers,
+        ], {
+          x: 0.8,
+          y: 4.25,
+          w: 6.2,
+          h: 1.6,
+          border: { color: 'CBD5E1', pt: 1 },
+          fill: 'FFFFFF',
+          fontSize: 9,
+        });
+        slide.addText(`Decoration positions: ${item.decoration}\nVariant: ${item.variant}\nMOQ: ${item.moq}`, {
+          x: 7.3,
+          y: 4.25,
+          w: 5.2,
+          h: 1.4,
+          fontSize: 10,
+          color: '334155',
+          breakLine: true,
+        });
+      } else {
+        if (imageData) {
+          slide.addImage({ data: imageData, x: 0.6, y: 1.4, w: 3.0, h: 2.4 });
+        } else {
+          slide.addShape(pptx.ShapeType.rect, {
+            x: 0.6,
+            y: 1.4,
+            w: 3.0,
+            h: 2.4,
+            line: { color: 'CBD5E1', pt: 1 },
+            fill: { color: 'F8FAFC' },
+          });
+          slide.addText('Image unavailable', {
+            x: 1.2,
+            y: 2.45,
+            w: 2.0,
+            h: 0.2,
+            fontSize: 10,
+            color: '64748B',
+          });
+        }
+
+        slide.addTable([
+          ['Qty Tier', 'Unit Cost', 'Sell Price'],
+          ...tiers,
+        ], {
+          x: 3.9,
+          y: 1.4,
+          w: 4.8,
+          h: 2.4,
+          border: { color: 'CBD5E1', pt: 1 },
+          fill: 'FFFFFF',
+          fontSize: 10,
+        });
+
+        slide.addText(
+          `Decoration position: ${item.decoration}\nVariant: ${item.variant}\nMOQ: ${item.moq}\nQuote notes: ${item.quoteNotes || '-'}\nDesign notes: ${item.designNotes || '-'}`,
+          {
+            x: 0.6,
+            y: 4.0,
+            w: 8.8,
+            h: 1.8,
+            fontSize: 11,
+            color: '334155',
+            valign: 'top',
+            breakLine: true,
+          }
+        );
+      }
+
+      if (audience === 'design') {
+        slide.addShape(pptx.ShapeType.rect, {
+          x: 9.1,
+          y: 4.0,
+          w: 3.8,
+          h: 1.8,
+          fill: { color: 'FFF7ED' },
+          line: { color: 'FDBA74', pt: 1 },
+        });
+        slide.addText(`Design Team\nMargin: ${item.margin}%\nMargin floor: ${item.marginFloor}%`, {
+          x: 9.3,
+          y: 4.2,
+          w: 3.3,
+          h: 1.2,
+          fontSize: 11,
+          bold: true,
+          color: '9A3412',
+          breakLine: true,
+        });
+      }
+    }
+
+    if (audience === 'design') {
+      const designSlide = pptx.addSlide();
+      designSlide.addText('Design Brief', {
+        x: 0.6,
+        y: 0.6,
+        w: 6,
+        h: 0.5,
+        fontSize: 24,
+        bold: true,
+        color: '111827',
+      });
+      designSlide.addText(
+        `Template: ${proposalTemplate || '-'}\nProduct Design: ${productDesign || '-'}\nDesign Files: ${designFiles || '-'}\nPricing Spreadsheet: ${pricingSpreadsheet || '-'}\nPrimary Color: ${brandPrimaryColor}\nSecondary Color: ${brandSecondaryColor}\nMonday Card: ${mondayCardUrl || '-'}`,
+        {
+          x: 0.6,
+          y: 1.4,
+          w: 6,
+          h: 2.3,
+          fontSize: 12,
+          color: '374151',
+          breakLine: true,
+        }
+      );
+      designSlide.addText(`Creative direction\n${creativeDirection || '-'}`, {
+        x: 0.6,
+        y: 3.9,
+        w: 8,
+        h: 1.7,
+        fontSize: 12,
+        color: '1F2937',
+        breakLine: true,
+      });
+      designSlide.addText(`Attached files\n${attachments.length ? attachments.join('\n') : 'None uploaded'}`, {
+        x: 8.8,
+        y: 1.4,
+        w: 4.0,
+        h: 4.2,
+        fontSize: 11,
+        color: '475569',
+        breakLine: true,
+      });
+    }
+
+    const suffix = audience === 'design' ? 'Design-Team' : 'Client';
+    const fileEntity = (entityTitle || entityKind).replace(/\s+/g, '_');
+    await pptx.writeFile({ fileName: `${fileEntity}_${suffix}.pptx` });
+  }
+
   const minMarginFloor = lineItems.length > 0 ? Math.max(...lineItems.map((i) => i.marginFloor)) : 25;
 
   return (
     <div
-      className="flex h-screen payload-sales-root payload-project-screen project-detail-screen"
+      className="flex min-h-screen payload-sales-root payload-project-screen project-detail-screen"
       style={{ backgroundColor: 'var(--jolly-bg)', fontFamily: 'Inter, system-ui, sans-serif' }}
     >
       <LeftSidebar currentRole={currentRole} />
 
-      <div className="flex-1 min-h-0 flex flex-col overflow-hidden project-detail-main">
+      <div className="flex-1 min-h-0 flex flex-col overflow-auto project-detail-main">
         {/* TOP BAR */}
         <div
-          className="project-detail-header bg-white border-b px-8 py-4 flex-shrink-0"
+          className="project-detail-header bg-white border-b px-8 py-3 flex-shrink-0"
           style={{ borderColor: 'var(--jolly-border)' }}
         >
           {/* Breadcrumb */}
@@ -680,7 +1288,11 @@ export function ProposalBuilder({
               My Proposals
             </Link>
             <ChevronRight size={13} style={{ color: 'var(--jolly-text-disabled)' }} />
-            <span style={{ fontSize: '13px', color: 'var(--jolly-text-disabled)' }}>{entityId ? `Proposal #${entityId}` : 'New Entity'}</span>
+            <span style={{ fontSize: '13px', color: 'var(--jolly-text-disabled)' }}>
+              {entityId
+                ? `${isDesignRequestFlow ? 'Design Request' : 'Proposal'} #${entityId}`
+                : `New ${isDesignRequestFlow ? 'Design Request' : 'Proposal'}`}
+            </span>
           </nav>
           {/* Title row */}
           <div className="flex items-center justify-between project-detail-title-row">
@@ -689,7 +1301,9 @@ export function ProposalBuilder({
                 <input
                   value={entityTitle}
                   onChange={(e) => setEntityTitle(e.target.value)}
-                  placeholder={isDesignRequestFlow ? 'New Design Request title' : 'New Proposal title'}
+                  placeholder={
+                    isDesignRequestFlow ? 'New Design Request title' : 'New Proposal title'
+                  }
                   style={{ height: '38px', width: '100%', maxWidth: '420px', minWidth: '220px', border: '1px solid var(--jolly-border)', borderRadius: '6px', padding: '0 12px', fontSize: '22px', fontWeight: 700 }}
                 />
               ) : (
@@ -697,14 +1311,58 @@ export function ProposalBuilder({
                   {entityTitle || 'Untitled'}
                 </h1>
               )}
+              {!isDesignRequestFlow && (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    height: '24px',
+                    padding: '0 10px',
+                    borderRadius: '999px',
+                    border: '1px solid var(--jolly-border)',
+                    backgroundColor: proposalType === 'custom-proposal' ? '#ECFDF3' : '#EEF2FF',
+                    color: proposalType === 'custom-proposal' ? '#065F46' : '#3730A3',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                  }}
+                  title="Detected from entered content"
+                >
+                  {proposalTypeLabel}
+                </span>
+              )}
               <StatusDropdown status={status} onChange={setStatus} statuses={statusOptions} />
             </div>
             <div className="flex items-center gap-3 project-detail-actions">
               <Button buttonStyle="secondary" size="small" onClick={() => setIsEditing((prev) => !prev)}>
                 {isEditing ? 'Save' : 'Edit'}
               </Button>
-              <Button buttonStyle="secondary" size="small">
-                <span className="inline-flex items-center gap-2"><FileText size={14} /> Preview as PDF</span>
+              <div className="flex items-center gap-2">
+                <select
+                  value={exportPptType}
+                  onChange={(e) => setExportPptType(e.target.value as 'quote' | 'proposal')}
+                  style={{
+                    height: '32px',
+                    border: '1px solid var(--jolly-border)',
+                    borderRadius: '6px',
+                    padding: '0 10px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: 'var(--jolly-text-body)',
+                    backgroundColor: 'white',
+                  }}
+                >
+                  <option value="quote">export PPT for quote</option>
+                  <option value="proposal" disabled={!hasDesignerAssets}>export PPT for proposal</option>
+                </select>
+              </div>
+              <Button
+                buttonStyle="secondary"
+                size="small"
+                onClick={() => exportAsPpt(exportPptType === 'quote' ? 'client' : 'design')}
+                disabled={!canExportSelectedPpt}
+                title={exportPptType === 'proposal' && !hasDesignerAssets ? 'Upload designer assets in the Assets tab first' : undefined}
+              >
+                <span className="inline-flex items-center gap-2"><ClipboardList size={14} /> Export PPT</span>
               </Button>
               <div className="relative group">
                 <button
@@ -755,11 +1413,8 @@ export function ProposalBuilder({
                 ]
               : [
                   { key: 'details', label: 'Details' },
-                  { key: 'line-items', label: 'Line Items' },
-                  { key: 'inventory-items', label: 'Inventory Items' },
-                  { key: 'quantities', label: 'Quantities' },
-                  { key: 'shipments', label: 'Shipments' },
-                  { key: 'billing', label: 'Billing' },
+                  { key: 'line-items', label: 'Products' },
+                  { key: 'assets', label: 'Assets' },
                 ]
             ).map((tab) => (
               <button
@@ -786,24 +1441,72 @@ export function ProposalBuilder({
 
         {/* MAIN CONTENT: Two column */}
         <fieldset disabled={!isEditing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
-        <div className="flex-1 min-h-0 min-w-0 flex overflow-hidden project-detail-body">
+        <div className="flex-1 min-w-0 flex project-detail-body">
           {/* LEFT SUMMARY PANEL */}
           {(activeTab === 'details' || activeTab === 'design-request') && (
           <div
-            className="project-detail-left-panel min-h-0 flex-shrink-0 overflow-auto p-5 flex flex-col gap-4"
-            style={{ width: '300px', backgroundColor: 'var(--jolly-bg)' }}
+            className="project-detail-left-panel min-h-0 flex-shrink-0 overflow-visible p-3 grid grid-cols-1 lg:grid-cols-2 gap-3 items-start"
+            style={{ width: '100%', maxWidth: '1200px', margin: '0 auto', backgroundColor: 'var(--jolly-bg)' }}
           >
-            {/* Client Block */}
-            {!isDesignRequestFlow && (
             <div
-              className="bg-white rounded p-4"
+              className="bg-white rounded p-3 lg:col-span-2"
               style={{
                 borderRadius: '6px',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05)',
                 border: '1px solid var(--jolly-border)',
               }}
             >
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--jolly-text-body)' }}>
+                    {isDesignRequestFlow ? 'Design Request Setup' : 'Proposal Setup'}
+                  </h2>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--jolly-text-secondary)' }}>
+                    Capture essentials first, then complete design context for smoother handoff.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span
+                    style={{
+                      border: '1px solid var(--jolly-border)',
+                      borderRadius: '999px',
+                      padding: '3px 10px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: hasCoreDetails ? 'var(--jolly-success)' : 'var(--jolly-text-secondary)',
+                      backgroundColor: hasCoreDetails ? '#ECFDF3' : 'white',
+                    }}
+                  >
+                    Core details {hasCoreDetails ? 'complete' : 'incomplete'}
+                  </span>
+                  <span
+                    style={{
+                      border: '1px solid var(--jolly-border)',
+                      borderRadius: '999px',
+                      padding: '3px 10px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: hasDesignBriefFields ? 'var(--jolly-success)' : 'var(--jolly-text-secondary)',
+                      backgroundColor: hasDesignBriefFields ? '#ECFDF3' : 'white',
+                    }}
+                  >
+                    Design brief {hasDesignBriefFields ? 'complete' : 'incomplete'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Client Block */}
+            {!isDesignRequestFlow && (
+            <div
+              className="bg-white rounded p-2.5 lg:col-span-1"
+              style={{
+                borderRadius: '6px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05)',
+                border: '1px solid var(--jolly-border)',
+              }}
+            >
+              <div className="flex items-center justify-between mb-2">
                 <span
                   style={{
                     fontSize: '11px',
@@ -826,23 +1529,40 @@ export function ProposalBuilder({
                   <Pencil size={13} style={{ color: 'var(--jolly-text-disabled)' }} />
                 </button>
               </div>
-              <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Customer" style={{ width: '100%', height: '30px', border: '1px solid var(--jolly-border)', borderRadius: '4px', padding: '0 8px', fontSize: '13px' }} />
-              <input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Contact name" style={{ width: '100%', height: '30px', border: '1px solid var(--jolly-border)', borderRadius: '4px', padding: '0 8px', fontSize: '13px', marginTop: '6px' }} />
-              <input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="Contact email" style={{ width: '100%', height: '30px', border: '1px solid var(--jolly-border)', borderRadius: '4px', padding: '0 8px', fontSize: '13px', marginTop: '6px' }} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--jolly-text-secondary)', marginBottom: '4px' }}>
+                    Customer
+                  </label>
+                  <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Customer" style={{ width: '100%', height: '30px', border: '1px solid var(--jolly-border)', borderRadius: '4px', padding: '0 8px', fontSize: '13px' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--jolly-text-secondary)', marginBottom: '4px' }}>
+                    Contact name
+                  </label>
+                  <input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Contact name" style={{ width: '100%', height: '30px', border: '1px solid var(--jolly-border)', borderRadius: '4px', padding: '0 8px', fontSize: '13px' }} />
+                </div>
+                <div className="sm:col-span-2">
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--jolly-text-secondary)', marginBottom: '4px' }}>
+                    Contact email
+                  </label>
+                  <input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="Contact email" style={{ width: '100%', height: '30px', border: '1px solid var(--jolly-border)', borderRadius: '4px', padding: '0 8px', fontSize: '13px' }} />
+                </div>
+              </div>
             </div>
             )}
 
             {/* Proposal Meta */}
             {!isDesignRequestFlow && (
             <div
-              className="bg-white rounded p-4"
+              className="bg-white rounded p-2.5 lg:col-span-1"
               style={{
                 borderRadius: '6px',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05)',
                 border: '1px solid var(--jolly-border)',
               }}
             >
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2">
                 <span
                   style={{
                     fontSize: '11px',
@@ -869,7 +1589,7 @@ export function ProposalBuilder({
               ].map((row) => (
                 <div
                   key={row.label}
-                  className="flex items-center justify-between py-1.5"
+                  className="flex items-center justify-between py-1"
                   style={{ borderBottom: '1px solid #F2F2F2' }}
                 >
                   <span style={{ fontSize: '12px', color: 'var(--jolly-text-disabled)' }}>
@@ -886,15 +1606,18 @@ export function ProposalBuilder({
                   </span>
                 </div>
               ))}
-              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ width: '100%', height: '30px', border: '1px solid var(--jolly-border)', borderRadius: '4px', padding: '0 8px', fontSize: '13px', marginTop: '8px' }} />
-              <input value={eventName} onChange={(e) => setEventName(e.target.value)} placeholder="Event / Project" style={{ width: '100%', height: '30px', border: '1px solid var(--jolly-border)', borderRadius: '4px', padding: '0 8px', fontSize: '13px', marginTop: '8px' }} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ width: '100%', height: '30px', border: '1px solid var(--jolly-border)', borderRadius: '4px', padding: '0 8px', fontSize: '13px' }} />
+                <input value={eventName} onChange={(e) => setEventName(e.target.value)} placeholder="Event / Project" style={{ width: '100%', height: '30px', border: '1px solid var(--jolly-border)', borderRadius: '4px', padding: '0 8px', fontSize: '13px' }} />
+                <input value={mondayCardUrl} onChange={(e) => setMondayCardUrl(e.target.value)} placeholder="Monday card URL (Phase 2 reference link)" className="sm:col-span-2" style={{ width: '100%', height: '30px', border: '1px solid var(--jolly-border)', borderRadius: '4px', padding: '0 8px', fontSize: '13px' }} />
+              </div>
             </div>
             )}
 
             {/* Design Request Details */}
-            {isDesignRequestFlow && activeTab === 'design-request' && (
+            {(isDesignRequestFlow || activeTab === 'details') && (
             <div
-              className="bg-white rounded p-4"
+              className="bg-white rounded p-2.5 lg:col-span-2"
               style={{
                 borderRadius: '6px',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05)',
@@ -910,9 +1633,9 @@ export function ProposalBuilder({
                   letterSpacing: '0.5px',
                 }}
               >
-                Design Request
+                {isDesignRequestFlow ? 'Design Request' : 'Design Brief'}
               </span>
-              <div className="mt-3 space-y-3">
+              <div className="mt-1.5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', color: 'var(--jolly-text-secondary)', marginBottom: '4px' }}>
                     Opportunity / account tier
@@ -960,6 +1683,41 @@ export function ProposalBuilder({
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', color: 'var(--jolly-text-secondary)', marginBottom: '4px' }}>
+                    Primary brand color
+                  </label>
+                  <input
+                    type="color"
+                    value={brandPrimaryColor}
+                    onChange={(e) => setBrandPrimaryColor(e.target.value)}
+                    style={{ width: '100%', height: '32px', border: '1px solid var(--jolly-border)', borderRadius: '6px', backgroundColor: 'white' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--jolly-text-secondary)', marginBottom: '4px' }}>
+                    Secondary brand color
+                  </label>
+                  <input
+                    type="color"
+                    value={brandSecondaryColor}
+                    onChange={(e) => setBrandSecondaryColor(e.target.value)}
+                    style={{ width: '100%', height: '32px', border: '1px solid var(--jolly-border)', borderRadius: '6px', backgroundColor: 'white' }}
+                  />
+                </div>
+                <div className="xl:col-span-1">
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--jolly-text-secondary)', marginBottom: '4px' }}>
+                    Creative direction
+                  </label>
+                  <textarea
+                    value={creativeDirection}
+                    onChange={(e) => setCreativeDirection(e.target.value)}
+                    rows={3}
+                    placeholder="Describe the visual direction for the design team"
+                    className="md:col-span-2 xl:col-span-3"
+                    style={{ width: '100%', border: '1px solid var(--jolly-border)', borderRadius: '6px', padding: '8px', fontSize: '13px', resize: 'vertical' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--jolly-text-secondary)', marginBottom: '4px' }}>
                     Pricing spreadsheet
                   </label>
                   <select value={pricingSpreadsheet} onChange={(e) => setPricingSpreadsheet(e.target.value as PricingSpreadsheetType)} style={{ width: '100%', height: '32px', border: '1px solid var(--jolly-border)', borderRadius: '6px', padding: '0 8px', fontSize: '13px', backgroundColor: 'white' }}>
@@ -969,7 +1727,7 @@ export function ProposalBuilder({
                   </select>
                 </div>
                 {pricingSpreadsheet === 'Required' && (
-                  <div>
+                  <div className="md:col-span-2 xl:col-span-3">
                     <p style={{ fontSize: '12px', color: 'var(--jolly-text-secondary)', marginBottom: '6px' }}>
                       Price breaks required
                     </p>
@@ -1006,7 +1764,7 @@ export function ProposalBuilder({
             {/* Totals Block */}
             {!isDesignRequestFlow && (
             <div
-              className="rounded p-4"
+              className="rounded p-2.5 lg:col-span-1"
               style={{
                 borderRadius: '6px',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05)',
@@ -1036,7 +1794,7 @@ export function ProposalBuilder({
                 ].map((row) => (
                   <div
                     key={row.label}
-                    className="flex items-center justify-between py-1.5"
+                    className="flex items-center justify-between py-1"
                   >
                     <span style={{ fontSize: '13px', color: 'var(--jolly-text-secondary)' }}>
                       {row.label}
@@ -1097,61 +1855,14 @@ export function ProposalBuilder({
                 </div>
               </div>
 
-              {/* Finance approval banner */}
-              {hasMarginIssue && (
-                <div
-                  className="mt-4 p-3 rounded flex items-start gap-2"
-                  style={{
-                    backgroundColor: 'var(--jolly-warning-bg)',
-                    border: '1px solid #F0E0A0',
-                    borderRadius: '6px',
-                  }}
-                >
-                  <AlertTriangle
-                    size={14}
-                    style={{ color: 'var(--jolly-warning)', flexShrink: 0, marginTop: '1px' }}
-                  />
-                  <div className="flex-1">
-                    <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--jolly-warning)' }}>
-                      Finance approval required
-                    </p>
-                    <p
-                      style={{
-                        fontSize: '11px',
-                        color: 'var(--jolly-warning)',
-                        opacity: 0.8,
-                        marginTop: '2px',
-                      }}
-                    >
-                      1 item below margin floor
-                    </p>
-                  </div>
-                </div>
-              )}
-              {hasMarginIssue && (
-                <button
-                  className="w-full flex items-center justify-center gap-2 mt-3"
-                  style={{
-                    height: '36px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    backgroundColor: '#7B5800',
-                    color: 'white',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Request approval <ChevronRight size={14} />
-                </button>
-              )}
+
             </div>
             )}
 
             {/* Internal Notes */}
             {!isDesignRequestFlow && (
             <div
-              className="bg-white rounded p-4"
+              className="bg-white rounded p-2.5 lg:col-span-1"
               style={{
                 borderRadius: '6px',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05)',
@@ -1196,7 +1907,7 @@ export function ProposalBuilder({
                 }}
               />
               <p style={{ fontSize: '11px', color: 'var(--jolly-text-disabled)', marginTop: '4px' }}>
-                Not visible to client in PDF output.
+                Internal use only - not included in client-safe export.
               </p>
             </div>
             )}
@@ -1206,10 +1917,12 @@ export function ProposalBuilder({
           {/* RIGHT MAIN AREA */}
           <div
             className={`project-detail-right-panel min-h-0 flex-1 overflow-auto p-6 pb-24 ${
+              activeTab === 'details' || activeTab === 'design-request' ? 'hidden' : ''
+            } ${
               activeTab === 'line-items' ? 'is-line-items' : ''
             }`}
           >
-            {!isDesignRequestFlow && activeTab !== 'details' && activeTab !== 'line-items' && (
+            {!isDesignRequestFlow && activeTab !== 'details' && activeTab !== 'line-items' && activeTab !== 'assets' && (
               <div className="bg-white rounded p-6" style={{ border: '1px solid var(--jolly-border)' }}>
                 <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
                   {activeTab.replace('-', ' ').replace(/\b\w/g, (m) => m.toUpperCase())}
@@ -1283,6 +1996,7 @@ export function ProposalBuilder({
                     {lineItems.map((item, index) => {
                       const isBelowFloor = item.margin < item.marginFloor;
                       const unitCost = item.baseCost + item.decoCost;
+                      const activeTier = resolveTierForQty(item.qty);
                       const unitSell = computeUnitSell(item);
                       const lineTotal = computeLineTotal(item);
                       const isHovered = hoveredRow === item.id;
@@ -1524,6 +2238,9 @@ export function ProposalBuilder({
                             >
                               ${unitSell.toFixed(2)}
                             </p>
+                            <p style={{ fontSize: '11px', color: 'var(--jolly-text-disabled)', marginTop: '3px' }}>
+                              Tier @ {activeTier}
+                            </p>
                           </td>
 
                           {/* Total */}
@@ -1561,6 +2278,60 @@ export function ProposalBuilder({
                             </div>
                           </td>
                           </tr>
+                          {!isDesignRequestFlow && (
+                          <tr
+                            style={{
+                              borderTop: '1px dashed #E5E7EB',
+                              backgroundColor: '#F8FAFC',
+                            }}
+                          >
+                            <td colSpan={10} className="px-4 py-3">
+                              <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+                                <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
+                                  Tier pricing for {item.product}
+                                </p>
+                                <p style={{ fontSize: '11px', color: 'var(--jolly-text-secondary)' }}>
+                                  Set per-tier sell prices exactly as needed for this proposal.
+                                </p>
+                              </div>
+                              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+                                {allPriceBreaks.map((tier) => (
+                                  <div key={tier}>
+                                    <label
+                                      style={{ display: 'block', fontSize: '11px', color: 'var(--jolly-text-secondary)', marginBottom: '4px' }}
+                                    >
+                                      Qty {tier}
+                                    </label>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      step={0.01}
+                                      value={item.tierPrices[tier]}
+                                      onChange={(e) =>
+                                        updateLineItem(item.id, {
+                                          tierPrices: {
+                                            ...item.tierPrices,
+                                            [tier]: Number.parseFloat(e.target.value || '0'),
+                                          },
+                                        })
+                                      }
+                                      style={{
+                                        width: '100%',
+                                        height: '30px',
+                                        border: '1px solid var(--jolly-border)',
+                                        borderRadius: '4px',
+                                        padding: '0 8px',
+                                        fontSize: '12px',
+                                        color: 'var(--jolly-text-body)',
+                                        backgroundColor: 'white',
+                                      }}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                          )}
                           {isDesignRequestFlow && (
                           <tr
                             style={{
@@ -1687,7 +2458,7 @@ export function ProposalBuilder({
                   Proposal Notes for Client
                 </h2>
                 <p style={{ fontSize: '12px', color: 'var(--jolly-text-disabled)', marginTop: '4px' }}>
-                  This text appears in the PDF proposal. Keep it professional.
+                  This text appears in the client-safe PowerPoint export. Keep it professional.
                 </p>
               </div>
               <div className="px-6 pb-5">
@@ -1722,7 +2493,7 @@ export function ProposalBuilder({
                 <textarea
                   value={clientNotes}
                   onChange={(e) => setClientNotes(e.target.value)}
-                  placeholder="Add any notes, terms, or custom messaging to include in the client-facing PDF..."
+                  placeholder="Add any notes, terms, or custom messaging to include in the client-safe PowerPoint export..."
                   rows={4}
                   style={{
                     width: '100%',
@@ -1749,9 +2520,9 @@ export function ProposalBuilder({
             )}
 
             {/* Attachments */}
-            {activeTab === 'details' && !isDesignRequestFlow && (
+            {activeTab === 'assets' && !isDesignRequestFlow && (
             <div
-              className="bg-white rounded mt-6"
+              className="bg-white rounded"
               style={{
                 borderRadius: '6px',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05)',
@@ -1760,12 +2531,16 @@ export function ProposalBuilder({
             >
               <div className="px-6 pt-5 pb-3">
                 <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--jolly-text-body)' }}>
-                  Attachments
+                  Designer Assets for PPT
                 </h2>
+                <p style={{ marginTop: '4px', fontSize: '13px', color: 'var(--jolly-text-secondary)' }}>
+                  Upload files that should be included in proposal-ready PPT output.
+                </p>
               </div>
               <div className="px-6 pb-5">
                 {/* Upload zone */}
-                <div
+                <label
+                  htmlFor="proposal-assets-upload"
                   className="border-2 border-dashed rounded flex items-center justify-center py-6 mb-4"
                   style={{
                     borderColor: 'var(--jolly-border)',
@@ -1784,10 +2559,17 @@ export function ProposalBuilder({
                   <div className="flex flex-col items-center gap-2">
                     <Upload size={20} style={{ color: 'var(--jolly-text-disabled)' }} />
                     <p style={{ fontSize: '13px', color: 'var(--jolly-text-disabled)' }}>
-                      Attach files to this proposal (spec sheets, mockups, briefs)
+                      Click to upload files (spec sheets, mockups, brand assets)
                     </p>
                   </div>
-                </div>
+                </label>
+                <input
+                  id="proposal-assets-upload"
+                  type="file"
+                  multiple
+                  style={{ display: 'none' }}
+                  onChange={(e) => addAttachments(e.target.files)}
+                />
 
                 {/* Attached files */}
                 {attachments.length > 0 && (
@@ -1876,10 +2658,13 @@ export function ProposalBuilder({
                   color: 'var(--jolly-primary)',
                   fontSize: '14px',
                   fontWeight: 600,
-                  cursor: 'pointer',
+                  cursor: canExportSelectedPpt ? 'pointer' : 'not-allowed',
+                  opacity: canExportSelectedPpt ? 1 : 0.55,
                 }}
+                onClick={() => exportAsPpt(exportPptType === 'quote' ? 'client' : 'design')}
+                disabled={!canExportSelectedPpt}
               >
-                <FileText size={14} /> Preview PDF
+                <ClipboardList size={14} /> Export PPT ({exportPptType === 'quote' ? 'Quote' : 'Proposal'})
               </button>
               <button
                 className="flex items-center gap-2"
@@ -1910,6 +2695,7 @@ export function ProposalBuilder({
         open={searchOpen}
         onClose={() => setSearchOpen(false)}
         onAdd={addFromSearch}
+        onRequestAppa={requestFromAppa}
       />
     </div>
   );

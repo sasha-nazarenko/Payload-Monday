@@ -9,20 +9,25 @@ import { useStorefront } from '../context/StorefrontContext';
 import { mockProducts } from '../data/mockProducts';
 import { filterProducts } from '../utils/filterProducts';
 import { canPublishProduct, getMissingFields } from '../utils/storefrontRequirements';
+import { useNavigate } from 'react-router';
+import { Product } from '../types';
+import { buildProposalSeedFromProduct, clearSalesShortlist, ProposalSeedProduct, readSalesShortlist, toggleShortlistProduct } from '../utils/salesWorkflow';
 import {
   Globe, EyeOff, X, AlertTriangle, Check, ChevronRight,
-  ExternalLink, Square, CheckSquare
+  ExternalLink, Square, CheckSquare, Bookmark, FolderPlus, ClipboardList, Plus
 } from 'lucide-react';
 
 export function ProductCatalogue() {
   const { filters } = useFilters();
   const { currentRole } = useRole();
   const { bulkSetStatus } = useStorefront();
+  const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [bulkAction, setBulkAction] = useState<'publish' | 'unpublish' | null>(null);
   const [bulkToast, setBulkToast] = useState<string | null>(null);
+  const [shortlist, setShortlist] = useState<ProposalSeedProduct[]>([]);
   const productsPerPage = 9;
 
   const isAdmin = false;
@@ -45,6 +50,10 @@ export function ProductCatalogue() {
   useEffect(() => {
     setSelectedIds([]);
   }, [currentRole]);
+
+  useEffect(() => {
+    setShortlist(readSalesShortlist());
+  }, []);
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
@@ -105,6 +114,42 @@ export function ProductCatalogue() {
     setTimeout(() => setBulkToast(null), 4000);
   };
 
+  const shortlistIds = shortlist.map((item) => item.id);
+
+  const handleToggleShortlist = (product: Product) => {
+    const next = toggleShortlistProduct(buildProposalSeedFromProduct(product));
+    setShortlist(next);
+    const wasSaved = next.some((item) => item.id === product.id);
+    setBulkToast(wasSaved ? `${product.name} added to shortlist.` : `${product.name} removed from shortlist.`);
+    setTimeout(() => setBulkToast(null), 2500);
+  };
+
+  const handleAddToProposal = (product: Product) => {
+    navigate('/proposals/new', {
+      state: {
+        prefillProducts: [buildProposalSeedFromProduct(product)],
+        sourceLabel: 'catalogue',
+      },
+    });
+  };
+
+  const handleStartFromShortlist = () => {
+    if (shortlist.length === 0) return;
+    navigate('/proposals/new', {
+      state: {
+        prefillProducts: shortlist,
+        sourceLabel: 'shortlist',
+      },
+    });
+  };
+
+  const handleClearShortlist = () => {
+    clearSalesShortlist();
+    setShortlist([]);
+    setBulkToast('Shortlist cleared.');
+    setTimeout(() => setBulkToast(null), 2500);
+  };
+
   return (
     <div
       className="flex h-screen overflow-hidden"
@@ -120,6 +165,63 @@ export function ProductCatalogue() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Bar */}
         <TopBar productCount={filteredProducts.length} />
+
+        <div
+          className="mx-6 mt-4 rounded-lg border bg-white px-4 py-3"
+          style={{ borderColor: 'var(--jolly-border)' }}
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2" style={{ color: 'var(--jolly-text-body)', fontSize: '14px', fontWeight: 600 }}>
+                <Bookmark size={15} style={{ color: 'var(--jolly-primary)' }} />
+                Client shortlist
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--jolly-text-secondary)', marginTop: '4px' }}>
+                {shortlist.length === 0
+                  ? 'Save products across sessions before creating a new proposal.'
+                  : `${shortlist.length} saved product${shortlist.length === 1 ? '' : 's'} ready for a new proposal.`}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleStartFromShortlist()}
+                disabled={shortlist.length === 0}
+                style={{
+                  height: '34px',
+                  padding: '0 12px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--jolly-primary)',
+                  backgroundColor: 'white',
+                  color: 'var(--jolly-primary)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: shortlist.length === 0 ? 'not-allowed' : 'pointer',
+                  opacity: shortlist.length === 0 ? 0.55 : 1,
+                }}
+              >
+                <span className="inline-flex items-center gap-2"><Plus size={13} /> New Proposal</span>
+              </button>
+              <button
+                onClick={handleClearShortlist}
+                disabled={shortlist.length === 0}
+                style={{
+                  height: '34px',
+                  padding: '0 12px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--jolly-border)',
+                  backgroundColor: 'white',
+                  color: 'var(--jolly-text-secondary)',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  cursor: shortlist.length === 0 ? 'not-allowed' : 'pointer',
+                  opacity: shortlist.length === 0 ? 0.55 : 1,
+                }}
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
 
         {/* Admin: Select-all bar */}
         {isAdmin && (
@@ -179,6 +281,9 @@ export function ProductCatalogue() {
                 onPageChange={handlePageChange}
                 selectedIds={selectedIds}
                 onToggleSelect={isAdmin ? handleToggleSelect : undefined}
+                shortlistIds={shortlistIds}
+                onToggleShortlist={handleToggleShortlist}
+                onAddToProposal={handleAddToProposal}
               />
             </div>
           </div>
